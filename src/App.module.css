@@ -1,0 +1,17 @@
+.app {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100vh;
+}
+
+.mapWrapper {
+    height: 90vh;
+    width: 100vw;
+}
+
+.header {
+    display: flex;
+    justify-content: center;
+    padding: 4px;
+}
