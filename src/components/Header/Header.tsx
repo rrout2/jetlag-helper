@@ -3,11 +3,9 @@ import {
     InputLabel,
     Select,
     MenuItem,
-    Button,
     FormControlLabel,
     Switch,
 } from "@mui/material";
-import { DEFAULT_VIEW_STATE } from "../../consts/coordinates";
 import styles from "./Header.module.css";
 import { MapStatus, type MapStatusType } from "../../App";
 
@@ -18,7 +16,8 @@ type HeaderProps = {
     setShowEliminatedAreas: (show: boolean) => void;
     zapperMode: boolean;
     setZapperMode: (mode: boolean) => void;
-    setViewState: (viewState: typeof DEFAULT_VIEW_STATE) => void;
+    highlightMyPolygon: boolean;
+    setHighlightMyPolygon: (show: boolean) => void;
 };
 
 export default function Header({
@@ -28,7 +27,8 @@ export default function Header({
     setShowEliminatedAreas,
     zapperMode,
     setZapperMode,
-    setViewState,
+    highlightMyPolygon,
+    setHighlightMyPolygon,
 }: HeaderProps) {
     return (
         <div className={styles.header}>
@@ -47,13 +47,6 @@ export default function Header({
                     <MenuItem value={MapStatus.MOUNTAINS}>Mountains</MenuItem>
                 </Select>
             </FormControl>
-            <Button
-                variant="contained"
-                color="primary"
-                onClick={() => setViewState(DEFAULT_VIEW_STATE)}
-            >
-                Reset
-            </Button>
             <FormControl>
                 <FormControlLabel
                     value="Show Eliminated Areas"
@@ -79,6 +72,21 @@ export default function Header({
                         />
                     }
                     label="Zapper Mode"
+                    labelPlacement="end"
+                />
+            </FormControl>
+            <FormControl>
+                <FormControlLabel
+                    value="Highlight My Polygon"
+                    control={
+                        <Switch
+                            checked={highlightMyPolygon}
+                            onChange={(e) =>
+                                setHighlightMyPolygon(e.target.checked)
+                            }
+                        />
+                    }
+                    label="Highlight My Polygon"
                     labelPlacement="end"
                 />
             </FormControl>

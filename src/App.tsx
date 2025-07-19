@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import styles from "./App.module.css";
 
-import Map, { Marker, Popup } from "react-map-gl/mapbox";
+import Map, { GeolocateControl, Marker, Popup } from "react-map-gl/mapbox";
 import type {
     MapMouseEvent,
     MapRef,
@@ -42,6 +42,7 @@ type Polygon = {
 
 function App() {
     const mapRef = useRef<MapRef>(null);
+    const geoControlRef = useRef<mapboxgl.GeolocateControl>(null);
     const [viewState, setViewState] = useState(DEFAULT_VIEW_STATE);
     const [lineCoords, setLineCoords] = useState<MapCoordinates[][]>([]);
     const [mapStatus, setMapStatus] = useState<MapStatusType>(MapStatus.NONE);
@@ -49,15 +50,27 @@ function App() {
     const [focusedMarker, setFocusedMarker] = useState<MapCoordinates | null>(
         null
     );
+    const [currentLocation, setCurrentLocation] = useState<MapCoordinates>({
+        longitude: 0,
+        latitude: 0,
+    });
+
     const [eliminatedPolygons, setEliminatedPolygons] = useState<Polygon[]>([]);
     const [showEliminatedAreas, setShowEliminatedAreas] = useState(true);
     const [zapperMode, setZapperMode] = useState(false);
+    const [highlightMyPolygon, setHighlightMyPolygon] = useState(false);
     const [voronoi, setVoronoi] = useState<d3.Voronoi<any> | null>(null);
     const [showPopup, setShowPopup] = useState(false);
 
     useEffect(() => {
         computeVoronoiDiagram(markerCoords);
     }, [markerCoords]);
+
+    useEffect(() => {
+        // Activate as soon as the control is loaded
+        console.log("Activating geolocate control ", !!geoControlRef.current);
+        geoControlRef.current?.trigger();
+    }, [geoControlRef.current]);
 
     useEffect(() => {
         setShowPopup(false);
@@ -185,7 +198,8 @@ function App() {
                 setShowEliminatedAreas={setShowEliminatedAreas}
                 zapperMode={zapperMode}
                 setZapperMode={setZapperMode}
-                setViewState={setViewState}
+                highlightMyPolygon={highlightMyPolygon}
+                setHighlightMyPolygon={setHighlightMyPolygon}
             />
             <div className={styles.mapWrapper}>
                 <Map
@@ -202,6 +216,18 @@ function App() {
                     }}
                     onClick={handleZap}
                 >
+                    <GeolocateControl
+                        trackUserLocation={true}
+                        positionOptions={{
+                            enableHighAccuracy: true,
+                        }}
+                        onGeolocate={(e: any) => {
+                            const { longitude, latitude } = e.coords;
+                            setCurrentLocation({ longitude, latitude });
+                        }}
+                        ref={geoControlRef}
+                    />
+
                     {markerCoords.map((coord) => (
                         <Marker
                             key={`${coord.longitude}-${coord.latitude}`}
@@ -232,6 +258,30 @@ function App() {
                             width={2}
                         />
                     ))}
+                    {highlightMyPolygon &&
+                        lineCoords
+                            .filter((lineCoord) => {
+                                const turfPoly = turf.polygon([
+                                    lineCoord.map((pt) => [
+                                        pt.longitude,
+                                        pt.latitude,
+                                    ]),
+                                ]);
+                                return turf.booleanPointInPolygon(
+                                    turf.point([
+                                        currentLocation.longitude,
+                                        currentLocation.latitude,
+                                    ]),
+                                    turfPoly
+                                );
+                            })
+                            .map((lineCoord) => (
+                                <Polygon
+                                    coords={lineCoord}
+                                    color="#0000ff"
+                                    border={false}
+                                />
+                            ))}
                     {showEliminatedAreas &&
                         [...eliminatedPolygons].map((poly, i) => (
                             <Polygon

@@ -5,9 +5,15 @@ type PolygonProps = {
     key?: string;
     coords: MapCoordinates[];
     color?: string;
+    border?: boolean;
 };
 
-export default function Polygon({ key, coords, color }: PolygonProps) {
+export default function Polygon({
+    key,
+    coords,
+    color,
+    border = true,
+}: PolygonProps) {
     return (
         <Source
             key={key}
@@ -38,13 +44,15 @@ export default function Polygon({ key, coords, color }: PolygonProps) {
                     "fill-opacity": 0.5,
                 }}
             />
-            <Layer
-                type="line"
-                paint={{
-                    "line-color": color || "#ff0000",
-                    "line-width": 3,
-                }}
-            />
+            {border && (
+                <Layer
+                    type="line"
+                    paint={{
+                        "line-color": color || "#ff0000",
+                        "line-width": 3,
+                    }}
+                />
+            )}
         </Source>
     );
 }
