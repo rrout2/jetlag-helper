@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import styles from "./App.module.css";
 
-import Map, { Marker, Layer, Source, Popup } from "react-map-gl/mapbox";
+import Map, { Marker, Popup } from "react-map-gl/mapbox";
 import type { MapRef, ViewStateChangeEvent } from "react-map-gl/mapbox";
 // @ts-expect-error No type declaration
 import * as d3 from "d3";
 import {
     Button,
     FormControl,
+    FormControlLabel,
     InputLabel,
     MenuItem,
     Select,
+    Switch,
 } from "@mui/material";
 import "mapbox-gl/dist/mapbox-gl.css";
 import {
@@ -22,6 +24,8 @@ import {
     THEATERS,
     MOUNTAINS,
 } from "./consts/coordinates";
+import Line from "./components/Line/Line";
+import Polygon from "./components/Polygon/Polygon";
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -33,6 +37,11 @@ const MapStatus = {
 } as const;
 type MapStatusType = (typeof MapStatus)[keyof typeof MapStatus];
 
+type Polygon = {
+    name: string;
+    coords: MapCoordinates[];
+};
+
 function App() {
     const mapRef = useRef<MapRef>(null);
     const [viewState, setViewState] = useState(DEFAULT_VIEW_STATE);
@@ -42,6 +51,11 @@ function App() {
     const [focusedMarker, setFocusedMarker] = useState<MapCoordinates | null>(
         null
     );
+    const [eliminatedPolygons, setEliminatedPolygons] = useState<Set<Polygon>>(
+        new Set()
+    );
+    const [showEliminatedAreas, setShowEliminatedAreas] = useState(true);
+    const [voronoi, setVoronoi] = useState<d3.Voronoi<any> | null>(null);
     const [showPopup, setShowPopup] = useState(false);
 
     useEffect(() => {
@@ -71,7 +85,24 @@ function App() {
         return mapRef.current?.project([lng, lat]);
     };
 
-    function computeVoronoiDiagram(points: MapCoordinates[]) {
+    const unprojectCell = (cell: any): MapCoordinates[] => {
+        return cell
+            .map((pt: any) => {
+                const unprojected = mapRef.current!.unproject(pt);
+                if (unprojected) {
+                    return {
+                        longitude: unprojected.lng,
+                        latitude: unprojected.lat,
+                    };
+                }
+            })
+            .filter((pt: any) => pt !== undefined);
+    };
+
+    function computeVoronoiDiagram(
+        points: MapCoordinates[],
+        onlyVoronoi = false
+    ) {
         if (!mapRef.current) return;
 
         const projectedPoints = points
@@ -86,21 +117,47 @@ function App() {
         const br = projectPoint(BOTTOM_RIGHT.longitude, BOTTOM_RIGHT.latitude)!;
 
         const voronoi = delaunay.voronoi([tl.x, tl.y, br.x, br.y]);
-        const voronoiCells = voronoi.cellPolygons();
-        const newCoords = voronoiCells.map((cell: any[]) =>
-            cell
-                .map((pt: any) => {
-                    const unprojected = mapRef.current!.unproject(pt);
-                    if (unprojected) {
-                        return {
-                            longitude: unprojected.lng,
-                            latitude: unprojected.lat,
-                        };
-                    }
-                })
-                .filter((pt: any) => pt !== undefined)
-        );
+        setVoronoi(voronoi);
+        if (onlyVoronoi) return;
+        const newCoords = voronoi.cellPolygons().map(unprojectCell);
         setLineCoords([...newCoords]);
+    }
+
+    function handleEliminate() {
+        const map = mapRef.current;
+        if (!voronoi || !map || !focusedMarker) return;
+
+        const existingPolygon = [...eliminatedPolygons].find(
+            (poly) => poly.name === focusedMarker.name
+        );
+        if (existingPolygon) {
+            setEliminatedPolygons((prev) => {
+                const newSet = new Set(prev);
+                newSet.delete(existingPolygon);
+                return newSet;
+            });
+            return;
+        }
+
+        const projected = projectPoint(
+            focusedMarker.longitude,
+            focusedMarker.latitude
+        )!;
+        voronoi.cellPolygons().forEach((_: any, idx: number) => {
+            if (!voronoi.contains(idx, projected.x, projected.y)) {
+                return;
+            }
+            setEliminatedPolygons((prev) => {
+                const cell = voronoi.cellPolygon(idx);
+                return new Set([
+                    ...prev,
+                    {
+                        name: focusedMarker.name || "no name",
+                        coords: unprojectCell(cell),
+                    },
+                ]);
+            });
+        });
     }
 
     return (
@@ -132,6 +189,21 @@ function App() {
                 >
                     Reset
                 </Button>
+                <FormControl>
+                    <FormControlLabel
+                        value="Show Eliminated Areas"
+                        control={
+                            <Switch
+                                checked={showEliminatedAreas}
+                                onChange={(e) =>
+                                    setShowEliminatedAreas(e.target.checked)
+                                }
+                            />
+                        }
+                        label="Show Eliminated Areas"
+                        labelPlacement="end"
+                    />
+                </FormControl>
             </div>
             <div className={styles.mapWrapper}>
                 <Map
@@ -143,6 +215,9 @@ function App() {
                     mapboxAccessToken={MAPBOX_TOKEN}
                     style={{ width: "100%", height: "100%" }}
                     mapStyle="mapbox://styles/mapbox/streets-v12"
+                    onMoveEnd={() => {
+                        computeVoronoiDiagram(markerCoords, true);
+                    }}
                 >
                     {markerCoords.map((coord) => (
                         <Marker
@@ -158,7 +233,7 @@ function App() {
                         >
                             <div
                                 style={{
-                                    background: "#ff0000",
+                                    background: "#000000",
                                     width: "20px",
                                     height: "20px",
                                     borderRadius: "50%",
@@ -167,38 +242,20 @@ function App() {
                         </Marker>
                     ))}
                     {lineCoords.map((lineCoord, i) => (
-                        <Source
+                        <Line
                             key={`line-${i}`}
-                            type="geojson"
-                            data={{
-                                type: "FeatureCollection",
-                                features: [
-                                    {
-                                        properties: {
-                                            color: "#ff0000",
-                                            width: 2,
-                                        },
-                                        type: "Feature",
-                                        geometry: {
-                                            type: "LineString",
-                                            coordinates: lineCoord.map((pt) => [
-                                                pt.longitude,
-                                                pt.latitude,
-                                            ]),
-                                        },
-                                    },
-                                ],
-                            }}
-                        >
-                            <Layer
-                                type="line"
-                                paint={{
-                                    "line-color": "#ff0000",
-                                    "line-width": 2,
-                                }}
-                            />
-                        </Source>
+                            coords={lineCoord}
+                            color="#000000"
+                        />
                     ))}
+                    {showEliminatedAreas &&
+                        [...eliminatedPolygons].map((poly, i) => (
+                            <Polygon
+                                key={`eliminated-${i}`}
+                                coords={poly.coords}
+                                color="#ff0000"
+                            />
+                        ))}
                     {focusedMarker && showPopup && (
                         <Popup
                             longitude={focusedMarker.longitude}
@@ -208,6 +265,14 @@ function App() {
                         >
                             <div className={styles.popup}>
                                 {focusedMarker.name}
+                                <Button onClick={handleEliminate}>
+                                    {[...eliminatedPolygons].find(
+                                        (poly) =>
+                                            poly.name === focusedMarker.name
+                                    )
+                                        ? "Undo"
+                                        : "Eliminate"}
+                                </Button>
                             </div>
                         </Popup>
                     )}
