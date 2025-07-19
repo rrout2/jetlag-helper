@@ -229,6 +229,7 @@ function App() {
                             keyProp={`line-${i}`}
                             coords={lineCoord}
                             color="#000000"
+                            width={2}
                         />
                     ))}
                     {showEliminatedAreas &&
@@ -248,7 +249,10 @@ function App() {
                         >
                             <div className={styles.popup}>
                                 {focusedMarker.name}
-                                <Button onClick={handleEliminate}>
+                                <Button
+                                    onClick={handleEliminate}
+                                    variant="outlined"
+                                >
                                     {[...eliminatedPolygons].find(
                                         (poly) =>
                                             poly.name === focusedMarker.name

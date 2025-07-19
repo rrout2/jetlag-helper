@@ -38,6 +38,13 @@ export default function Polygon({ key, coords, color }: PolygonProps) {
                     "fill-opacity": 0.5,
                 }}
             />
+            <Layer
+                type="line"
+                paint={{
+                    "line-color": color || "#ff0000",
+                    "line-width": 3,
+                }}
+            />
         </Source>
     );
 }
