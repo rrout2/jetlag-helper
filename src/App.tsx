@@ -47,6 +47,8 @@ function App() {
     }, [markerCoords]);
 
     useEffect(() => {
+        setShowPopup(false);
+        setFocusedMarker(null);
         switch (mapStatus) {
             case MapStatus.NONE:
                 setMarkerCoords([]);
@@ -83,7 +85,7 @@ function App() {
         const newCoords = voronoiCells.map((cell: any[]) =>
             cell
                 .map((pt: any) => {
-                    const unprojected = mapRef.current?.unproject(pt);
+                    const unprojected = mapRef.current!.unproject(pt);
                     if (unprojected) {
                         return {
                             longitude: unprojected.lng,
