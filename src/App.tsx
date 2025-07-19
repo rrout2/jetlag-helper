@@ -19,8 +19,6 @@ import {
     AQUARIUMS,
     TOP_LEFT,
     BOTTOM_RIGHT,
-    AQUARIUM_OF_THE_BAY,
-    CAL_ACADEMY_AQUARIUM,
     THEATERS,
 } from "./consts/coordinates";
 
