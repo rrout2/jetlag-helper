@@ -17,6 +17,7 @@ jobs:
             - name: Install and Build 🔧
               run: |
                   npm ci
+                  echo "VITE_MAPBOX_TOKEN=${{ secrets.VITE_MAPBOX_TOKEN }}" > .env
                   npm run build
 
             - name: Deploy 🚀
