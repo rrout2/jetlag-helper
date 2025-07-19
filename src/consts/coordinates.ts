@@ -148,7 +148,123 @@ const THEATERS: MapCoordinates[] = [
     MARINA_THEATER,
 ];
 
+// Mountains
+const GRAND_VIEW: MapCoordinates = {
+    longitude: -122.4717879341264,
+    latitude: 37.756354300243,
+    name: "Grand View",
+};
+
+const LARSEN_PEAK: MapCoordinates = {
+    longitude: -122.46976785550503,
+    latitude: 37.74991362513737,
+    name: "Larsen Peak",
+};
+
+const MOUNT_SUTRO: MapCoordinates = {
+    longitude: -122.45719357996839,
+    latitude: 37.75825144747154,
+    name: "Mount Sutro",
+};
+
+const MOUNT_OLYMPUS: MapCoordinates = {
+    longitude: -122.44555344559288,
+    latitude: 37.76331450243748,
+    name: "Mount Olympus",
+};
+
+const BUENA_VISTA_HEIGHTS: MapCoordinates = {
+    longitude: -122.44153607490108,
+    latitude: 37.767756309310776,
+    name: "Buena Vista Heights",
+};
+
+const CORONA_HEIGHTS: MapCoordinates = {
+    longitude: -122.4388622383827,
+    latitude: 37.76529189903791,
+    name: "Corona Heights",
+};
+
+const BERNAL_HEIGHTS: MapCoordinates = {
+    longitude: -122.41428851585196,
+    latitude: 37.74315109784265,
+    name: "Bernal Heights",
+};
+
+const MOUNT_DAVIDSON: MapCoordinates = {
+    longitude: -122.45391473040162,
+    latitude: 37.73837230194142,
+    name: "Mount Davidson",
+};
+
+const GOLD_MINE_HILL: MapCoordinates = {
+    longitude: -122.4379047033688,
+    latitude: 37.74132409518538,
+    name: "Gold Mine Hill",
+};
+
+const VISTACION_KNOB: MapCoordinates = {
+    longitude: -122.42194497176581,
+    latitude: 37.719077723911425,
+    name: "Vistacion Knob",
+};
+
+const BAYVIEW_HILL: MapCoordinates = {
+    longitude: -122.39269969403246,
+    latitude: 37.714650301921175,
+    name: "Bayview Hill",
+};
+
+const LAKEVIEW_ASHTON_MINI_PARK: MapCoordinates = {
+    longitude: -122.46259179182279,
+    latitude: 37.718025078192085,
+    name: "Lakeview and Ashton Mini Park",
+};
+
+const LONE_MOUNTAIN: MapCoordinates = {
+    longitude: -122.45222307701565,
+    latitude: 37.779246551766704,
+    name: "Lone Mountain",
+};
+
+const STRAWBERRY_HILL: MapCoordinates = {
+    longitude: -122.47545978591258,
+    latitude: 37.768639909337836,
+    name: "Strawberry Hill",
+};
+
+const TWIN_PEAKS: MapCoordinates = {
+    longitude: -122.44742401960328,
+    latitude: 37.75287456613608,
+    name: "Twin Peaks",
+};
+
+const TANK_HILL: MapCoordinates = {
+    longitude: -122.44769815484298,
+    latitude: 37.75989339750374,
+    name: "Tank Hill",
+};
+
+const MOUNTAINS: MapCoordinates[] = [
+    GRAND_VIEW,
+    LARSEN_PEAK,
+    MOUNT_SUTRO,
+    MOUNT_OLYMPUS,
+    BUENA_VISTA_HEIGHTS,
+    CORONA_HEIGHTS,
+    BERNAL_HEIGHTS,
+    MOUNT_DAVIDSON,
+    GOLD_MINE_HILL,
+    VISTACION_KNOB,
+    BAYVIEW_HILL,
+    LAKEVIEW_ASHTON_MINI_PARK,
+    LONE_MOUNTAIN,
+    STRAWBERRY_HILL,
+    TWIN_PEAKS,
+    TANK_HILL,
+];
 export {
+    MOUNTAINS,
     TOP_LEFT,
     BOTTOM_RIGHT,
     DEFAULT_VIEW_STATE,

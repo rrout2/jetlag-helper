@@ -20,6 +20,7 @@ import {
     TOP_LEFT,
     BOTTOM_RIGHT,
     THEATERS,
+    MOUNTAINS,
 } from "./consts/coordinates";
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -28,6 +29,7 @@ const MapStatus = {
     NONE: 0,
     AQUARIUM: 1,
     THEATERS: 2,
+    MOUNTAINS: 3,
 } as const;
 type MapStatusType = (typeof MapStatus)[keyof typeof MapStatus];
 
@@ -58,6 +60,9 @@ function App() {
                 break;
             case MapStatus.THEATERS:
                 setMarkerCoords(THEATERS);
+                break;
+            case MapStatus.MOUNTAINS:
+                setMarkerCoords(MOUNTAINS);
                 break;
         }
     }, [mapStatus]);
@@ -115,6 +120,9 @@ function App() {
                             Aquariums
                         </MenuItem>
                         <MenuItem value={MapStatus.THEATERS}>Theaters</MenuItem>
+                        <MenuItem value={MapStatus.MOUNTAINS}>
+                            Mountains
+                        </MenuItem>
                     </Select>
                 </FormControl>
                 <Button
