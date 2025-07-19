@@ -51,9 +51,7 @@ function App() {
     const [focusedMarker, setFocusedMarker] = useState<MapCoordinates | null>(
         null
     );
-    const [eliminatedPolygons, setEliminatedPolygons] = useState<Set<Polygon>>(
-        new Set()
-    );
+    const [eliminatedPolygons, setEliminatedPolygons] = useState<Polygon[]>([]);
     const [showEliminatedAreas, setShowEliminatedAreas] = useState(true);
     const [voronoi, setVoronoi] = useState<d3.Voronoi<any> | null>(null);
     const [showPopup, setShowPopup] = useState(false);
@@ -127,15 +125,11 @@ function App() {
         const map = mapRef.current;
         if (!voronoi || !map || !focusedMarker) return;
 
-        const existingPolygon = [...eliminatedPolygons].find(
-            (poly) => poly.name === focusedMarker.name
+        const filtered = eliminatedPolygons.filter(
+            (poly) => poly.name !== focusedMarker.name
         );
-        if (existingPolygon) {
-            setEliminatedPolygons((prev) => {
-                const newSet = new Set(prev);
-                newSet.delete(existingPolygon);
-                return newSet;
-            });
+        if (filtered.length !== eliminatedPolygons.length) {
+            setEliminatedPolygons(filtered);
             return;
         }
 
@@ -147,16 +141,14 @@ function App() {
             if (!voronoi.contains(idx, projected.x, projected.y)) {
                 return;
             }
-            setEliminatedPolygons((prev) => {
-                const cell = voronoi.cellPolygon(idx);
-                return new Set([
-                    ...prev,
-                    {
-                        name: focusedMarker.name || "no name",
-                        coords: unprojectCell(cell),
-                    },
-                ]);
-            });
+            const cell = voronoi.cellPolygon(idx);
+            setEliminatedPolygons((prev) => [
+                ...prev,
+                {
+                    name: focusedMarker.name || "no name",
+                    coords: unprojectCell(cell),
+                },
+            ]);
         });
     }
 
@@ -283,3 +275,5 @@ function App() {
 }
 
 export default App;
+
+/*******  c1bfe78c-97ee-4699-86bf-4bc7fadee620  *******/
