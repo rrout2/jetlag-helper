@@ -3,92 +3,82 @@ import styles from "./App.module.css";
 
 import Map, { Marker, Layer, Source } from "react-map-gl/mapbox";
 import type { MapRef, ViewStateChangeEvent } from "react-map-gl/mapbox";
-import * as turf from "@turf/turf";
 // @ts-expect-error No type declaration
 import * as d3 from "d3";
-import { Button } from "@mui/material";
+import {
+    Button,
+    FormControl,
+    InputLabel,
+    MenuItem,
+    Select,
+} from "@mui/material";
 import "mapbox-gl/dist/mapbox-gl.css";
+import {
+    DEFAULT_VIEW_STATE,
+    type MapCoordinates,
+    AQUARIUMS,
+    TOP_LEFT,
+    BOTTOM_RIGHT,
+    AQUARIUM_OF_THE_BAY,
+    CAL_ACADEMY_AQUARIUM,
+    THEATERS,
+} from "./consts/coordinates";
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
-type ViewState = {
-    longitude: number;
-    latitude: number;
-    zoom?: number;
-    color?: string;
-};
-
-const DEFAULT_VIEW_STATE: ViewState = {
-    longitude: -122.43,
-    latitude: 37.76,
-    zoom: 12,
-};
-
-const CAL_ACADEMY_AQUARIUM: ViewState = {
-    longitude: -122.466,
-    latitude: 37.7695,
-};
-
-const AQUARIUM_OF_THE_BAY: ViewState = {
-    longitude: -122.4095,
-    latitude: 37.8085,
-};
-
-const AQUARIUMS = [CAL_ACADEMY_AQUARIUM, AQUARIUM_OF_THE_BAY];
-
-const measureDistance = (marker: ViewState, target: ViewState): number => {
-    const line = turf.lineString([
-        [marker.longitude, marker.latitude],
-        [target.longitude, target.latitude],
-    ]);
-    return turf.length(line);
-};
+const MapStatus = {
+    NONE: 0,
+    AQUARIUM: 1,
+    THEATERS: 2,
+} as const;
+type MapStatusType = (typeof MapStatus)[keyof typeof MapStatus];
 
 function App() {
     const mapRef = useRef<MapRef>(null);
     const [viewState, setViewState] = useState(DEFAULT_VIEW_STATE);
-    const [_, setMarkers] = useState<ViewState[]>([]);
-    const [lineCoords, setLineCoords] = useState<ViewState[][]>([]);
+    const [lineCoords, setLineCoords] = useState<MapCoordinates[][]>([]);
+    const [mapStatus, setMapStatus] = useState<MapStatusType>(MapStatus.NONE);
+    const [markerCoords, setMarkerCoords] = useState<MapCoordinates[]>([]);
 
     useEffect(() => {
-        createMarkers();
-    }, []);
+        genVoronoi(markerCoords);
+    }, [mapRef.current?.getBounds(), markerCoords]);
 
     useEffect(() => {
-        voronoi(AQUARIUMS);
-    }, [mapRef.current?.getBounds()]);
+        switch (mapStatus) {
+            case MapStatus.NONE:
+                setMarkerCoords([]);
+                break;
+            case MapStatus.AQUARIUM:
+                setMarkerCoords(AQUARIUMS);
+                break;
+            case MapStatus.THEATERS:
+                setMarkerCoords(THEATERS);
+                break;
+        }
+    }, [mapStatus]);
 
     const projectPoint = (lng: number, lat: number) => {
         return mapRef.current?.project([lng, lat]);
     };
 
-    function voronoi(points: ViewState[]) {
+    function genVoronoi(points: MapCoordinates[]) {
         if (!mapRef.current) return;
 
         const projectedPoints = points
-            .map((point) => projectPoint(point.longitude, point.latitude))
-            .filter((point) => point !== undefined)
+            .map((point) => projectPoint(point.longitude, point.latitude)!)
             .map((point) => [point.x, point.y]);
         const delaunay = d3.Delaunay.from(
             projectedPoints,
             (d: number[]) => d[0],
             (d: number[]) => d[1]
         );
-
-        const topLeft = {
-            longitude: -122.519303,
-            latitude: 37.817117,
-        };
-        const bottomRight = {
-            longitude: -122.353658,
-            latitude: 37.708856,
-        };
-        const tl = projectPoint(topLeft.longitude, topLeft.latitude)!;
-        const br = projectPoint(bottomRight.longitude, bottomRight.latitude)!;
+        const tl = projectPoint(TOP_LEFT.longitude, TOP_LEFT.latitude)!;
+        const br = projectPoint(BOTTOM_RIGHT.longitude, BOTTOM_RIGHT.latitude)!;
 
         const voronoi = delaunay.voronoi([tl.x, tl.y, br.x, br.y]);
         const voronoiCells = voronoi.cellPolygons();
-        const newCoords: ViewState[][] = [];
+        const newCoords: MapCoordinates[][] = [];
         for (const cell of voronoiCells) {
             const cellCoords = cell
                 .map((pt: any) => {
@@ -106,79 +96,23 @@ function App() {
         setLineCoords([...newCoords]);
     }
 
-    function createMarkers() {
-        const newMarkers: ViewState[] = [];
-        const topLeft = {
-            longitude: -122.519303,
-            latitude: 37.807117,
-        };
-        const bottomRight = {
-            longitude: -122.343658,
-            latitude: 37.708856,
-        };
-        const sideLength = 35;
-        const xStep = (bottomRight.longitude - topLeft.longitude) / sideLength;
-        const yStep = (bottomRight.latitude - topLeft.latitude) / sideLength;
-        for (let i = 0; i < sideLength; i++) {
-            for (let j = 0; j < sideLength; j++) {
-                const marker: ViewState = {
-                    longitude: topLeft.longitude + i * xStep,
-                    latitude: topLeft.latitude + j * yStep,
-                };
-                const distanceToCalAcademy = measureDistance(
-                    marker,
-                    CAL_ACADEMY_AQUARIUM
-                );
-                const distanceToAquariumOfTheBay = measureDistance(
-                    marker,
-                    AQUARIUM_OF_THE_BAY
-                );
-                const closerToCalAcademy =
-                    distanceToCalAcademy < distanceToAquariumOfTheBay;
-                marker.color = closerToCalAcademy ? "#0000ff" : "#ee0000";
-                newMarkers.push(marker);
-            }
-        }
-        setMarkers(newMarkers);
-    }
-
-    const aquariumOfTheBayMarker = (
-        <Marker
-            longitude={AQUARIUM_OF_THE_BAY.longitude}
-            latitude={AQUARIUM_OF_THE_BAY.latitude}
-            anchor="center"
-        >
-            <div
-                style={{
-                    background: "#ff0000",
-                    width: "20px",
-                    height: "20px",
-                    borderRadius: "50%",
-                }}
-            />
-        </Marker>
-    );
-
-    const calAcademyAquariumMarker = (
-        <Marker
-            longitude={CAL_ACADEMY_AQUARIUM.longitude}
-            latitude={CAL_ACADEMY_AQUARIUM.latitude}
-            anchor="center"
-        >
-            <div
-                style={{
-                    background: "#ff0000",
-                    width: "20px",
-                    height: "20px",
-                    borderRadius: "50%",
-                }}
-            />
-        </Marker>
-    );
-
     return (
         <div className={styles.app}>
             <div className={styles.header}>
+                <FormControl className={styles.dropdown}>
+                    <InputLabel>Map Status</InputLabel>
+                    <Select
+                        value={mapStatus}
+                        label="Map Status"
+                        onChange={(event) =>
+                            setMapStatus(event.target.value as MapStatusType)
+                        }
+                    >
+                        <MenuItem value={MapStatus.NONE}>None</MenuItem>
+                        <MenuItem value={MapStatus.AQUARIUM}>Aquarium</MenuItem>
+                        <MenuItem value={MapStatus.THEATERS}>Theaters</MenuItem>
+                    </Select>
+                </FormControl>
                 <Button
                     variant="contained"
                     color="primary"
@@ -198,8 +132,23 @@ function App() {
                     style={{ width: "100%", height: "100%" }}
                     mapStyle="mapbox://styles/mapbox/streets-v12"
                 >
-                    {calAcademyAquariumMarker}
-                    {aquariumOfTheBayMarker}
+                    {markerCoords.map((coord) => (
+                        <Marker
+                            key={`${coord.longitude}-${coord.latitude}`}
+                            longitude={coord.longitude}
+                            latitude={coord.latitude}
+                            anchor="center"
+                        >
+                            <div
+                                style={{
+                                    background: "#ff0000",
+                                    width: "10px",
+                                    height: "10px",
+                                    borderRadius: "50%",
+                                }}
+                            />
+                        </Marker>
+                    ))}
                     {lineCoords.map((lineCoord) => (
                         <Source
                             type="geojson"
@@ -232,23 +181,6 @@ function App() {
                             />
                         </Source>
                     ))}
-                    {/* {markers.map((marker, index) => (
-                        <Marker
-                            key={index}
-                            longitude={marker.longitude}
-                            latitude={marker.latitude}
-                            anchor="center"
-                        >
-                            <div
-                                style={{
-                                    background: marker.color,
-                                    width: "4px",
-                                    height: "4px",
-                                    borderRadius: "50%",
-                                }}
-                            />
-                        </Marker>
-                    ))} */}
                 </Map>
             </div>
         </div>
