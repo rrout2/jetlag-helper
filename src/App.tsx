@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import styles from "./App.module.css";
 
-import Map, { Marker, Layer, Source } from "react-map-gl/mapbox";
+import Map, { Marker, Layer, Source, Popup } from "react-map-gl/mapbox";
 import type { MapRef, ViewStateChangeEvent } from "react-map-gl/mapbox";
 // @ts-expect-error No type declaration
 import * as d3 from "d3";
@@ -37,10 +37,14 @@ function App() {
     const [lineCoords, setLineCoords] = useState<MapCoordinates[][]>([]);
     const [mapStatus, setMapStatus] = useState<MapStatusType>(MapStatus.NONE);
     const [markerCoords, setMarkerCoords] = useState<MapCoordinates[]>([]);
+    const [focusedMarker, setFocusedMarker] = useState<MapCoordinates | null>(
+        null
+    );
+    const [showPopup, setShowPopup] = useState(false);
 
     useEffect(() => {
-        genVoronoi(markerCoords);
-    }, [mapRef.current?.getBounds(), markerCoords]);
+        computeVoronoiDiagram(markerCoords);
+    }, [markerCoords]);
 
     useEffect(() => {
         switch (mapStatus) {
@@ -60,7 +64,7 @@ function App() {
         return mapRef.current?.project([lng, lat]);
     };
 
-    function genVoronoi(points: MapCoordinates[]) {
+    function computeVoronoiDiagram(points: MapCoordinates[]) {
         if (!mapRef.current) return;
 
         const projectedPoints = points
@@ -76,9 +80,8 @@ function App() {
 
         const voronoi = delaunay.voronoi([tl.x, tl.y, br.x, br.y]);
         const voronoiCells = voronoi.cellPolygons();
-        const newCoords: MapCoordinates[][] = [];
-        for (const cell of voronoiCells) {
-            const cellCoords = cell
+        const newCoords = voronoiCells.map((cell: any[]) =>
+            cell
                 .map((pt: any) => {
                     const unprojected = mapRef.current?.unproject(pt);
                     if (unprojected) {
@@ -88,9 +91,8 @@ function App() {
                         };
                     }
                 })
-                .filter((pt: any) => pt !== undefined);
-            newCoords.push(cellCoords);
-        }
+                .filter((pt: any) => pt !== undefined)
+        );
         setLineCoords([...newCoords]);
     }
 
@@ -98,16 +100,18 @@ function App() {
         <div className={styles.app}>
             <div className={styles.header}>
                 <FormControl className={styles.dropdown}>
-                    <InputLabel>Map Status</InputLabel>
+                    <InputLabel>Map Display</InputLabel>
                     <Select
                         value={mapStatus}
-                        label="Map Status"
+                        label="Map Display"
                         onChange={(event) =>
                             setMapStatus(event.target.value as MapStatusType)
                         }
                     >
                         <MenuItem value={MapStatus.NONE}>None</MenuItem>
-                        <MenuItem value={MapStatus.AQUARIUM}>Aquarium</MenuItem>
+                        <MenuItem value={MapStatus.AQUARIUM}>
+                            Aquariums
+                        </MenuItem>
                         <MenuItem value={MapStatus.THEATERS}>Theaters</MenuItem>
                     </Select>
                 </FormControl>
@@ -136,19 +140,25 @@ function App() {
                             longitude={coord.longitude}
                             latitude={coord.latitude}
                             anchor="center"
+                            onClick={(e) => {
+                                e.originalEvent.stopPropagation();
+                                setFocusedMarker(coord);
+                                setShowPopup(true);
+                            }}
                         >
                             <div
                                 style={{
                                     background: "#ff0000",
-                                    width: "10px",
-                                    height: "10px",
+                                    width: "20px",
+                                    height: "20px",
                                     borderRadius: "50%",
                                 }}
                             />
                         </Marker>
                     ))}
-                    {lineCoords.map((lineCoord) => (
+                    {lineCoords.map((lineCoord, i) => (
                         <Source
+                            key={`line-${i}`}
                             type="geojson"
                             data={{
                                 type: "FeatureCollection",
@@ -179,6 +189,18 @@ function App() {
                             />
                         </Source>
                     ))}
+                    {focusedMarker && showPopup && (
+                        <Popup
+                            longitude={focusedMarker.longitude}
+                            latitude={focusedMarker.latitude}
+                            onClose={() => setShowPopup(false)}
+                            closeButton={false}
+                        >
+                            <div className={styles.popup}>
+                                {focusedMarker.name}
+                            </div>
+                        </Popup>
+                    )}
                 </Map>
             </div>
         </div>
