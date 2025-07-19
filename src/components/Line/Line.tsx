@@ -2,13 +2,18 @@ import { Layer, Source } from "react-map-gl/mapbox";
 import type { MapCoordinates } from "../../consts/coordinates";
 
 type LineProps = {
-    key?: string;
+    keyProp?: string;
     coords: MapCoordinates[];
     color?: string;
     width?: number;
 };
 
-export default function Line({ key, coords, color, width }: LineProps) {
+export default function Line({
+    keyProp: key,
+    coords,
+    color,
+    width,
+}: LineProps) {
     return (
         <Source
             key={key}

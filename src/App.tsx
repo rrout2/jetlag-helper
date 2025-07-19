@@ -2,18 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import styles from "./App.module.css";
 
 import Map, { Marker, Popup } from "react-map-gl/mapbox";
-import type { MapRef, ViewStateChangeEvent } from "react-map-gl/mapbox";
+import type {
+    MapMouseEvent,
+    MapRef,
+    ViewStateChangeEvent,
+} from "react-map-gl/mapbox";
 // @ts-expect-error No type declaration
 import * as d3 from "d3";
-import {
-    Button,
-    FormControl,
-    FormControlLabel,
-    InputLabel,
-    MenuItem,
-    Select,
-    Switch,
-} from "@mui/material";
+import * as turf from "@turf/turf";
+import { Button } from "@mui/material";
 import "mapbox-gl/dist/mapbox-gl.css";
 import {
     DEFAULT_VIEW_STATE,
@@ -26,16 +23,17 @@ import {
 } from "./consts/coordinates";
 import Line from "./components/Line/Line";
 import Polygon from "./components/Polygon/Polygon";
+import Header from "./components/Header/Header";
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
-const MapStatus = {
+export const MapStatus = {
     NONE: 0,
     AQUARIUM: 1,
     THEATERS: 2,
     MOUNTAINS: 3,
 } as const;
-type MapStatusType = (typeof MapStatus)[keyof typeof MapStatus];
+export type MapStatusType = (typeof MapStatus)[keyof typeof MapStatus];
 
 type Polygon = {
     name: string;
@@ -53,6 +51,7 @@ function App() {
     );
     const [eliminatedPolygons, setEliminatedPolygons] = useState<Polygon[]>([]);
     const [showEliminatedAreas, setShowEliminatedAreas] = useState(true);
+    const [zapperMode, setZapperMode] = useState(false);
     const [voronoi, setVoronoi] = useState<d3.Voronoi<any> | null>(null);
     const [showPopup, setShowPopup] = useState(false);
 
@@ -152,51 +151,42 @@ function App() {
         });
     }
 
+    function handleZap(e: MapMouseEvent) {
+        const map = mapRef.current;
+        if (!zapperMode || !map || !showEliminatedAreas) return;
+        // if any eliminated polygon contains the clicked point, remove it
+        const clickedPoint = e.lngLat;
+        const projected = projectPoint(clickedPoint.lng, clickedPoint.lat)!;
+        const turfPt = turf.point([projected.x, projected.y]);
+        eliminatedPolygons.forEach((poly) => {
+            const turfPoly = turf.polygon([
+                poly.coords.map((pt) => {
+                    const projectedPt = projectPoint(
+                        pt.longitude,
+                        pt.latitude
+                    )!;
+                    return [projectedPt.x, projectedPt.y];
+                }),
+            ]);
+            if (turf.booleanPointInPolygon(turfPt, turfPoly)) {
+                setEliminatedPolygons((prev) =>
+                    prev.filter((p) => p.name !== poly.name)
+                );
+            }
+        });
+    }
+
     return (
         <div className={styles.app}>
-            <div className={styles.header}>
-                <FormControl className={styles.dropdown}>
-                    <InputLabel>Map Display</InputLabel>
-                    <Select
-                        value={mapStatus}
-                        label="Map Display"
-                        onChange={(event) =>
-                            setMapStatus(event.target.value as MapStatusType)
-                        }
-                    >
-                        <MenuItem value={MapStatus.NONE}>None</MenuItem>
-                        <MenuItem value={MapStatus.AQUARIUM}>
-                            Aquariums
-                        </MenuItem>
-                        <MenuItem value={MapStatus.THEATERS}>Theaters</MenuItem>
-                        <MenuItem value={MapStatus.MOUNTAINS}>
-                            Mountains
-                        </MenuItem>
-                    </Select>
-                </FormControl>
-                <Button
-                    variant="contained"
-                    color="primary"
-                    onClick={() => setViewState(DEFAULT_VIEW_STATE)}
-                >
-                    Reset
-                </Button>
-                <FormControl>
-                    <FormControlLabel
-                        value="Show Eliminated Areas"
-                        control={
-                            <Switch
-                                checked={showEliminatedAreas}
-                                onChange={(e) =>
-                                    setShowEliminatedAreas(e.target.checked)
-                                }
-                            />
-                        }
-                        label="Show Eliminated Areas"
-                        labelPlacement="end"
-                    />
-                </FormControl>
-            </div>
+            <Header
+                mapStatus={mapStatus}
+                setMapStatus={setMapStatus}
+                showEliminatedAreas={showEliminatedAreas}
+                setShowEliminatedAreas={setShowEliminatedAreas}
+                zapperMode={zapperMode}
+                setZapperMode={setZapperMode}
+                setViewState={setViewState}
+            />
             <div className={styles.mapWrapper}>
                 <Map
                     ref={mapRef}
@@ -210,6 +200,7 @@ function App() {
                     onMoveEnd={() => {
                         computeVoronoiDiagram(markerCoords, true);
                     }}
+                    onClick={handleZap}
                 >
                     {markerCoords.map((coord) => (
                         <Marker
@@ -235,7 +226,7 @@ function App() {
                     ))}
                     {lineCoords.map((lineCoord, i) => (
                         <Line
-                            key={`line-${i}`}
+                            keyProp={`line-${i}`}
                             coords={lineCoord}
                             color="#000000"
                         />
@@ -275,5 +266,3 @@ function App() {
 }
 
 export default App;
-
-/*******  c1bfe78c-97ee-4699-86bf-4bc7fadee620  *******/
