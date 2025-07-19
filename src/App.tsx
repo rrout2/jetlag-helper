@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import styles from "./App.module.css";
 
-import Map, { Marker, Layer, Source, useMap } from "react-map-gl/mapbox";
+import Map, { Marker, Layer, Source } from "react-map-gl/mapbox";
 import type { MapRef, ViewStateChangeEvent } from "react-map-gl/mapbox";
 import * as turf from "@turf/turf";
 // @ts-expect-error No type declaration
@@ -47,7 +47,7 @@ const measureDistance = (marker: ViewState, target: ViewState): number => {
 function App() {
     const mapRef = useRef<MapRef>(null);
     const [viewState, setViewState] = useState(DEFAULT_VIEW_STATE);
-    const [markers, setMarkers] = useState<ViewState[]>([]);
+    const [_, setMarkers] = useState<ViewState[]>([]);
     const [lineCoords, setLineCoords] = useState<ViewState[][]>([]);
 
     useEffect(() => {
