@@ -126,10 +126,12 @@ function App() {
         const tl = projectPoint(TOP_LEFT.longitude, TOP_LEFT.latitude)!;
         const br = projectPoint(BOTTOM_RIGHT.longitude, BOTTOM_RIGHT.latitude)!;
 
-        const voronoi = delaunay.voronoi([tl.x, tl.y, br.x, br.y]);
-        setVoronoi(voronoi);
+        const vor = delaunay.voronoi([tl.x, tl.y, br.x, br.y]);
+        setVoronoi(vor);
         if (onlyVoronoi) return;
-        const newCoords = voronoi.cellPolygons().map(unprojectCell);
+        const newCoords = vor
+            .cellPolygons()
+            .map(unprojectCell) as MapCoordinates[][];
         setLineCoords([...newCoords]);
     }
 
@@ -212,6 +214,15 @@ function App() {
                     style={{ width: "100%", height: "100%" }}
                     mapStyle="mapbox://styles/mapbox/streets-v12"
                     onMoveEnd={() => {
+                        computeVoronoiDiagram(markerCoords, true);
+                    }}
+                    onDragEnd={() => {
+                        computeVoronoiDiagram(markerCoords, true);
+                    }}
+                    onZoomEnd={() => {
+                        computeVoronoiDiagram(markerCoords, true);
+                    }}
+                    onRotateEnd={() => {
                         computeVoronoiDiagram(markerCoords, true);
                     }}
                     onClick={handleZap}
