@@ -263,7 +263,68 @@ const MOUNTAINS: MapCoordinates[] = [
     TWIN_PEAKS,
     TANK_HILL,
 ];
+
+const LINCOLN_PARK_GOLF_COURSE: MapCoordinates = {
+    longitude: -122.4944350727545,
+    latitude: 37.78227642579915,
+    name: "Lincoln Park Golf Course",
+};
+
+const GOLDEN_GATE_PARK_GOLF_COURSE: MapCoordinates = {
+    longitude: -122.50509217707933,
+    latitude: 37.76840006294823,
+    name: "Golden Gate Park Golf Course",
+};
+
+const PRESIDIO_GOLF_COURSE: MapCoordinates = {
+    longitude: -122.45978067334318,
+    latitude: 37.79044347248328,
+    name: "Presidio Golf Course",
+};
+
+const TPC_FLEMING_GOLF_COURSE: MapCoordinates = {
+    longitude: -122.49106041984149,
+    latitude: 37.725579412616376,
+    name: "TPC Fleming Golf Course",
+};
+
+const TPC_HARDING_GOLF_COURSE: MapCoordinates = {
+    longitude: -122.49319786089983,
+    latitude: 37.72479372930749,
+    name: "TPC Harding Golf Course",
+};
+
+const THE_OLYMPIC_CLUB: MapCoordinates = {
+    longitude: -122.49325393370552,
+    latitude: 37.708571380148314,
+    name: "The Olympic Club",
+};
+
+const SAN_FRANCISCO_GOLF_CLUB: MapCoordinates = {
+    longitude: -122.47744201684212,
+    latitude: 37.71219264812866,
+    name: "San Francisco Golf Club",
+};
+
+const GLENEAGLES_GOLF_COURSE: MapCoordinates = {
+    longitude: -122.42438357214981,
+    latitude: 37.715854069565516,
+    name: "Gleneagles Golf Course",
+};
+
+const GOLF_COURSES: MapCoordinates[] = [
+    LINCOLN_PARK_GOLF_COURSE,
+    GOLDEN_GATE_PARK_GOLF_COURSE,
+    PRESIDIO_GOLF_COURSE,
+    TPC_FLEMING_GOLF_COURSE,
+    TPC_HARDING_GOLF_COURSE,
+    THE_OLYMPIC_CLUB,
+    SAN_FRANCISCO_GOLF_CLUB,
+    GLENEAGLES_GOLF_COURSE,
+];
+
 export {
+    GOLF_COURSES,
     MOUNTAINS,
     TOP_LEFT,
     BOTTOM_RIGHT,

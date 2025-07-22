@@ -45,6 +45,9 @@ export default function Header({
                     <MenuItem value={MapStatus.AQUARIUM}>Aquariums</MenuItem>
                     <MenuItem value={MapStatus.THEATERS}>Theaters</MenuItem>
                     <MenuItem value={MapStatus.MOUNTAINS}>Mountains</MenuItem>
+                    <MenuItem value={MapStatus.GOLF_COURSES}>
+                        Golf Courses
+                    </MenuItem>
                 </Select>
             </FormControl>
             <FormControl>

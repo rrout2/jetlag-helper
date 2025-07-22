@@ -20,6 +20,7 @@ import {
     BOTTOM_RIGHT,
     THEATERS,
     MOUNTAINS,
+    GOLF_COURSES,
 } from "./consts/coordinates";
 import Line from "./components/Line/Line";
 import Polygon from "./components/Polygon/Polygon";
@@ -32,6 +33,7 @@ export const MapStatus = {
     AQUARIUM: 1,
     THEATERS: 2,
     MOUNTAINS: 3,
+    GOLF_COURSES: 4,
 } as const;
 export type MapStatusType = (typeof MapStatus)[keyof typeof MapStatus];
 
@@ -87,6 +89,9 @@ function App() {
                 break;
             case MapStatus.MOUNTAINS:
                 setMarkerCoords(MOUNTAINS);
+                break;
+            case MapStatus.GOLF_COURSES:
+                setMarkerCoords(GOLF_COURSES);
                 break;
         }
     }, [mapStatus]);
