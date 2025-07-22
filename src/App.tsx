@@ -1,7 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import styles from "./App.module.css";
 
-import Map, { GeolocateControl, Marker, Popup } from "react-map-gl/mapbox";
+import Map, {
+    GeolocateControl,
+    Layer,
+    Marker,
+    Popup,
+    Source,
+} from "react-map-gl/mapbox";
 import type {
     MapMouseEvent,
     MapRef,
@@ -34,12 +40,24 @@ export const MapStatus = {
     THEATERS: 2,
     MOUNTAINS: 3,
     GOLF_COURSES: 4,
+    SUPERVISOR_DISTRICTS: 5,
 } as const;
 export type MapStatusType = (typeof MapStatus)[keyof typeof MapStatus];
 
 type Polygon = {
     name: string;
     coords: MapCoordinates[];
+};
+
+type SupervisorDistrict = {
+    polygon: {
+        type: string;
+        coordinates: number[][][][];
+    };
+    sup_dist: string;
+    sup_dist_name: string;
+    sup_dist_num: string;
+    sup_name: string;
 };
 
 function App() {
@@ -63,6 +81,18 @@ function App() {
     const [highlightMyPolygon, setHighlightMyPolygon] = useState(false);
     const [voronoi, setVoronoi] = useState<d3.Voronoi<any> | null>(null);
     const [showPopup, setShowPopup] = useState(false);
+    const [supDistrictData, setSupDistrictData] = useState<
+        SupervisorDistrict[]
+    >([]);
+
+    useEffect(() => {
+        fetch("https://data.sfgov.org/resource/f2zs-jevy.json")
+            .then((response) => response.json())
+            .then((data: SupervisorDistrict[]) => {
+                setSupDistrictData(data);
+            })
+            .catch((error) => console.error("Error loading GeoJSON:", error));
+    }, []);
 
     useEffect(() => {
         computeVoronoiDiagram(markerCoords);
@@ -70,7 +100,6 @@ function App() {
 
     useEffect(() => {
         // Activate as soon as the control is loaded
-        console.log("Activating geolocate control ", !!geoControlRef.current);
         geoControlRef.current?.trigger();
     }, [geoControlRef.current]);
 
@@ -92,6 +121,9 @@ function App() {
                 break;
             case MapStatus.GOLF_COURSES:
                 setMarkerCoords(GOLF_COURSES);
+                break;
+            default:
+                setMarkerCoords([]);
                 break;
         }
     }, [mapStatus]);
@@ -268,7 +300,7 @@ function App() {
                     ))}
                     {lineCoords.map((lineCoord, i) => (
                         <Line
-                            keyProp={`line-${i}`}
+                            key={`line-${i}`}
                             coords={lineCoord}
                             color="#000000"
                             width={2}
@@ -319,7 +351,7 @@ function App() {
                                     onClick={handleEliminate}
                                     variant="outlined"
                                 >
-                                    {[...eliminatedPolygons].find(
+                                    {eliminatedPolygons.find(
                                         (poly) =>
                                             poly.name === focusedMarker.name
                                     )
@@ -329,6 +361,39 @@ function App() {
                             </div>
                         </Popup>
                     )}
+                    {mapStatus === MapStatus.SUPERVISOR_DISTRICTS &&
+                        supDistrictData.map((district) => (
+                            <Source
+                                key={district.sup_dist_num}
+                                type="geojson"
+                                data={{
+                                    type: "FeatureCollection",
+                                    features: [
+                                        {
+                                            properties: {
+                                                color: "#000000",
+                                                width: 2,
+                                            },
+                                            type: "Feature",
+                                            geometry: {
+                                                type: "LineString",
+                                                coordinates:
+                                                    district.polygon
+                                                        .coordinates[0][0],
+                                            },
+                                        },
+                                    ],
+                                }}
+                            >
+                                <Layer
+                                    type="line"
+                                    paint={{
+                                        "line-color": "#000000",
+                                        "line-width": 2,
+                                    }}
+                                />
+                            </Source>
+                        ))}
                 </Map>
             </div>
         </div>

@@ -48,6 +48,9 @@ export default function Header({
                     <MenuItem value={MapStatus.GOLF_COURSES}>
                         Golf Courses
                     </MenuItem>
+                    <MenuItem value={MapStatus.SUPERVISOR_DISTRICTS}>
+                        Supervisor Districts
+                    </MenuItem>
                 </Select>
             </FormControl>
             <FormControl>

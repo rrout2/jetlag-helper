@@ -2,21 +2,14 @@ import { Layer, Source } from "react-map-gl/mapbox";
 import type { MapCoordinates } from "../../consts/coordinates";
 
 type LineProps = {
-    keyProp?: string;
     coords: MapCoordinates[];
     color?: string;
     width?: number;
 };
 
-export default function Line({
-    keyProp: key,
-    coords,
-    color,
-    width,
-}: LineProps) {
+export default function Line({ coords, color, width }: LineProps) {
     return (
         <Source
-            key={key}
             type="geojson"
             data={{
                 type: "FeatureCollection",
