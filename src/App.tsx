@@ -31,6 +31,8 @@ import {
 import Line from "./components/Line/Line";
 import Polygon from "./components/Polygon/Polygon";
 import Header from "./components/Header/Header";
+import type { FeatureCollection, MultiPolygon } from "geojson";
+import MultiPolygonComponent from "./components/MultiPolygon/MultiPolygon";
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -44,20 +46,14 @@ export const MapStatus = {
 } as const;
 export type MapStatusType = (typeof MapStatus)[keyof typeof MapStatus];
 
-type Polygon = {
+// TODO: better name
+type Poly = {
     name: string;
     coords: MapCoordinates[];
 };
 
-type SupervisorDistrict = {
-    polygon: {
-        type: string;
-        coordinates: number[][][][];
-    };
-    sup_dist: string;
-    sup_dist_name: string;
-    sup_dist_num: string;
-    sup_name: string;
+type KeyedMultiPolygon = MultiPolygon & {
+    key: string;
 };
 
 function App() {
@@ -75,21 +71,23 @@ function App() {
         latitude: 0,
     });
 
-    const [eliminatedPolygons, setEliminatedPolygons] = useState<Polygon[]>([]);
+    const [eliminatedPolygons, setEliminatedPolygons] = useState<Poly[]>([]);
+    const [eliminatedMultiPolygons, setEliminatedMultiPolygons] = useState<
+        KeyedMultiPolygon[]
+    >([]);
     const [showEliminatedAreas, setShowEliminatedAreas] = useState(true);
     const [zapperMode, setZapperMode] = useState(false);
     const [highlightMyPolygon, setHighlightMyPolygon] = useState(false);
     const [voronoi, setVoronoi] = useState<d3.Voronoi<any> | null>(null);
     const [showPopup, setShowPopup] = useState(false);
-    const [supDistrictData, setSupDistrictData] = useState<
-        SupervisorDistrict[]
-    >([]);
+    const [supDistrictData, storeSupDistrictData] =
+        useState<FeatureCollection | null>(null);
 
     useEffect(() => {
-        fetch("https://data.sfgov.org/resource/f2zs-jevy.json")
+        fetch("https://data.sfgov.org/resource/f2zs-jevy.geojson")
             .then((response) => response.json())
-            .then((data: SupervisorDistrict[]) => {
-                setSupDistrictData(data);
+            .then((data: FeatureCollection) => {
+                storeSupDistrictData(data);
             })
             .catch((error) => console.error("Error loading GeoJSON:", error));
     }, []);
@@ -172,9 +170,50 @@ function App() {
         setLineCoords([...newCoords]);
     }
 
+    function handleSupervisorDistrictEliminate() {
+        const district = Number(focusedMarker!.name);
+        const filtered = eliminatedMultiPolygons.filter(
+            (poly) => poly.key !== `district-${district}`
+        );
+
+        if (filtered.length !== eliminatedMultiPolygons.length) {
+            setEliminatedMultiPolygons(filtered);
+            setFocusedMarker(null);
+            setShowPopup(false);
+            return;
+        }
+
+        const districtPolygon = supDistrictData!.features[district - 1]
+            .geometry as MultiPolygon;
+        const districtPolygonCoordinates = districtPolygon.coordinates;
+        setEliminatedMultiPolygons((prev) => {
+            return [
+                ...prev,
+                {
+                    key: `district-${district}`,
+                    type: "MultiPolygon",
+                    coordinates: districtPolygonCoordinates,
+                } as KeyedMultiPolygon,
+            ];
+        });
+        setFocusedMarker(null);
+        setShowPopup(false);
+    }
+
     function handleEliminate() {
         const map = mapRef.current;
-        if (!voronoi || !map || !focusedMarker) return;
+        if (
+            !(voronoi || mapStatus === MapStatus.SUPERVISOR_DISTRICTS) ||
+            !map ||
+            !focusedMarker
+        ) {
+            return;
+        }
+
+        if (mapStatus === MapStatus.SUPERVISOR_DISTRICTS && supDistrictData) {
+            handleSupervisorDistrictEliminate();
+            return;
+        }
 
         const filtered = eliminatedPolygons.filter(
             (poly) => poly.name !== focusedMarker.name
@@ -203,10 +242,47 @@ function App() {
         });
     }
 
-    function handleZap(e: MapMouseEvent) {
+    function handleMapClick(e: MapMouseEvent) {
         const map = mapRef.current;
-        if (!zapperMode || !map || !showEliminatedAreas) return;
-        // if any eliminated polygon contains the clicked point, remove it
+        if (!map) return;
+        if (mapStatus == MapStatus.SUPERVISOR_DISTRICTS && supDistrictData) {
+            const clickedPoint = e.lngLat;
+            const projected = projectPoint(clickedPoint.lng, clickedPoint.lat)!;
+            const turfPt = turf.point([projected.x, projected.y]);
+            supDistrictData.features.forEach((feature) => {
+                const multiPolyCoords = (feature.geometry as MultiPolygon)
+                    .coordinates;
+                const turfMultiPoly = turf.multiPolygon(
+                    multiPolyCoords.map((polyCoords) => {
+                        return [
+                            polyCoords[0].map((coord) => {
+                                const projectedPt = projectPoint(
+                                    coord[0],
+                                    coord[1]
+                                )!;
+                                return [projectedPt.x, projectedPt.y];
+                            }),
+                        ];
+                    })
+                );
+                if (turf.booleanPointInPolygon(turfPt, turfMultiPoly)) {
+                    setFocusedMarker({
+                        longitude: clickedPoint.lng,
+                        latitude: clickedPoint.lat,
+                        name: feature.properties!.sup_dist_num,
+                    });
+                    setShowPopup(true);
+                }
+            });
+        }
+        if (zapperMode && showEliminatedAreas) {
+            handleZap(e);
+        }
+    }
+
+    // if any eliminated polygon contains the clicked point, remove it
+    // TODO: handle multipolygons
+    function handleZap(e: MapMouseEvent) {
         const clickedPoint = e.lngLat;
         const projected = projectPoint(clickedPoint.lng, clickedPoint.lat)!;
         const turfPt = turf.point([projected.x, projected.y]);
@@ -262,7 +338,7 @@ function App() {
                     onRotateEnd={() => {
                         computeVoronoiDiagram(markerCoords, true);
                     }}
-                    onClick={handleZap}
+                    onClick={handleMapClick}
                 >
                     <GeolocateControl
                         trackUserLocation={true}
@@ -330,14 +406,20 @@ function App() {
                                     border={false}
                                 />
                             ))}
-                    {showEliminatedAreas &&
-                        [...eliminatedPolygons].map((poly, i) => (
-                            <Polygon
-                                key={`eliminated-${i}`}
-                                coords={poly.coords}
-                                color="#ff0000"
-                            />
-                        ))}
+                    {showEliminatedAreas && (
+                        <>
+                            {[...eliminatedPolygons].map((poly, i) => (
+                                <Polygon
+                                    key={`eliminated-${i}`}
+                                    coords={poly.coords}
+                                    color="#ff0000"
+                                />
+                            ))}
+                            {eliminatedMultiPolygons.map((poly) => (
+                                <MultiPolygonComponent geojsonData={poly} />
+                            ))}
+                        </>
+                    )}
                     {focusedMarker && showPopup && (
                         <Popup
                             longitude={focusedMarker.longitude}
@@ -354,6 +436,13 @@ function App() {
                                     {eliminatedPolygons.find(
                                         (poly) =>
                                             poly.name === focusedMarker.name
+                                    ) ||
+                                    eliminatedMultiPolygons.find(
+                                        (poly) =>
+                                            poly.key ===
+                                            `district-${Number(
+                                                focusedMarker.name
+                                            )}`
                                     )
                                         ? "Undo"
                                         : "Eliminate"}
@@ -362,28 +451,11 @@ function App() {
                         </Popup>
                     )}
                     {mapStatus === MapStatus.SUPERVISOR_DISTRICTS &&
-                        supDistrictData.map((district) => (
+                        supDistrictData && (
                             <Source
-                                key={district.sup_dist_num}
+                                key={"district-data"}
                                 type="geojson"
-                                data={{
-                                    type: "FeatureCollection",
-                                    features: [
-                                        {
-                                            properties: {
-                                                color: "#000000",
-                                                width: 2,
-                                            },
-                                            type: "Feature",
-                                            geometry: {
-                                                type: "LineString",
-                                                coordinates:
-                                                    district.polygon
-                                                        .coordinates[0][0],
-                                            },
-                                        },
-                                    ],
-                                }}
+                                data={supDistrictData}
                             >
                                 <Layer
                                     type="line"
@@ -393,7 +465,7 @@ function App() {
                                     }}
                                 />
                             </Source>
-                        ))}
+                        )}
                 </Map>
             </div>
         </div>
