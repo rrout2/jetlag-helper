@@ -34,7 +34,7 @@ import Header from "./components/Header/Header";
 import type { FeatureCollection, MultiPolygon } from "geojson";
 import MultiPolygonComponent from "./components/MultiPolygon/MultiPolygon";
 
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string;
 
 export const MapStatus = {
     NONE: 0,
@@ -292,7 +292,6 @@ function App() {
     }
 
     // if any eliminated polygon contains the clicked point, remove it
-    // TODO: handle multipolygons
     function handleZap(e: MapMouseEvent) {
         const clickedPoint = e.lngLat;
         const projected = projectPoint(clickedPoint.lng, clickedPoint.lat)!;
@@ -310,6 +309,27 @@ function App() {
             if (turf.booleanPointInPolygon(turfPt, turfPoly)) {
                 setEliminatedPolygons((prev) =>
                     prev.filter((p) => p.name !== poly.name)
+                );
+            }
+        });
+        eliminatedMultiPolygons.forEach((multiPoly) => {
+            const multiPolyCoords = multiPoly.coordinates;
+            const turfMultiPoly = turf.multiPolygon(
+                multiPolyCoords.map((polyCoords) => {
+                    return [
+                        polyCoords[0].map((coord) => {
+                            const projectedPt = projectPoint(
+                                coord[0],
+                                coord[1]
+                            )!;
+                            return [projectedPt.x, projectedPt.y];
+                        }),
+                    ];
+                })
+            );
+            if (turf.booleanPointInPolygon(turfPt, turfMultiPoly)) {
+                setEliminatedMultiPolygons((prev) =>
+                    prev.filter((p) => p.key !== multiPoly.key)
                 );
             }
         });
