@@ -171,14 +171,49 @@ function App() {
         setLineCoords([...newCoords]);
     }
 
-    function handleSupervisorDistrictEliminate() {
+    function handleSupervisorDistrictEliminate(invert = false) {
         const district = Number(focusedMarker!.name);
-        const filtered = eliminatedMultiPolygons.filter(
-            (poly) => poly.key !== `district-${district}`
-        );
+        if (!invert) {
+            const filtered = eliminatedMultiPolygons.filter(
+                (poly) => poly.key !== `district-${district}`
+            );
 
-        if (filtered.length !== eliminatedMultiPolygons.length) {
-            setEliminatedMultiPolygons(filtered);
+            if (filtered.length !== eliminatedMultiPolygons.length) {
+                setEliminatedMultiPolygons(filtered);
+                setFocusedMarker(null);
+                setShowPopup(false);
+                return;
+            }
+        } else {
+            const filtered = eliminatedMultiPolygons.filter(
+                (poly) => poly.key !== `district-${district}-others`
+            );
+
+            if (filtered.length !== eliminatedMultiPolygons.length) {
+                setEliminatedMultiPolygons(filtered);
+                setFocusedMarker(null);
+                setShowPopup(false);
+                return;
+            }
+        }
+        if (invert) {
+            supDistrictData!.features.forEach((feature, i) => {
+                if (i + 1 === district) {
+                    return;
+                }
+                const multiPolyCoords = (feature.geometry as MultiPolygon)
+                    .coordinates;
+                setEliminatedMultiPolygons((prev) => {
+                    return [
+                        ...prev,
+                        {
+                            key: `district-${district}-others`,
+                            type: "MultiPolygon",
+                            coordinates: multiPolyCoords,
+                        } as KeyedMultiPolygon,
+                    ];
+                });
+            });
             setFocusedMarker(null);
             setShowPopup(false);
             return;
@@ -201,13 +236,23 @@ function App() {
         setShowPopup(false);
     }
 
-    function handleStandardEliminiate() {
-        const filtered = eliminatedPolygons.filter(
-            (poly) => poly.name !== focusedMarker!.name
-        );
-        if (filtered.length !== eliminatedPolygons.length) {
-            setEliminatedPolygons(filtered);
-            return;
+    function handleStandardEliminiate(invert = false) {
+        if (!invert) {
+            const filtered = eliminatedPolygons.filter(
+                (poly) => poly.name !== focusedMarker!.name
+            );
+            if (filtered.length !== eliminatedPolygons.length) {
+                setEliminatedPolygons(filtered);
+                return;
+            }
+        } else {
+            const filtered = eliminatedPolygons.filter(
+                (poly) => poly.name !== `${focusedMarker!.name}-others`
+            );
+            if (filtered.length !== eliminatedPolygons.length) {
+                setEliminatedPolygons(filtered);
+                return;
+            }
         }
 
         const projected = projectPoint(
@@ -215,14 +260,24 @@ function App() {
             focusedMarker!.latitude
         )!;
         voronoi.cellPolygons().forEach((_: any, idx: number) => {
-            if (!voronoi.contains(idx, projected.x, projected.y)) {
+            const contains = voronoi.contains(
+                idx,
+                projected.x,
+                projected.y
+            ) as boolean;
+            if (!contains && !invert) {
+                return;
+            }
+            if (contains && invert) {
                 return;
             }
             const cell = voronoi.cellPolygon(idx);
             setEliminatedPolygons((prev) => [
                 ...prev,
                 {
-                    name: focusedMarker!.name || "no name",
+                    name: invert
+                        ? `${focusedMarker!.name}-others`
+                        : focusedMarker!.name || "no name",
                     coords: unprojectCell(cell),
                 },
             ]);
@@ -245,6 +300,24 @@ function App() {
         }
 
         handleStandardEliminiate();
+    }
+
+    function handleEliminateOthers() {
+        const map = mapRef.current;
+        if (
+            !(voronoi || mapStatus === MapStatus.SUPERVISOR_DISTRICTS) ||
+            !map ||
+            !focusedMarker
+        ) {
+            return;
+        }
+
+        if (mapStatus === MapStatus.SUPERVISOR_DISTRICTS && supDistrictData) {
+            handleSupervisorDistrictEliminate(true);
+            return;
+        }
+
+        handleStandardEliminiate(true);
     }
 
     function handleSupervisorClick(e: MapMouseEvent) {
@@ -355,7 +428,7 @@ function App() {
                         setViewState(evt.viewState)
                     }
                     mapboxAccessToken={MAPBOX_TOKEN}
-                    style={{ width: "100%", height: "100%" }}
+                    style={{ width: "97%", height: "100%" }}
                     mapStyle="mapbox://styles/mapbox/streets-v12"
                     onMoveEnd={() => {
                         computeVoronoiDiagram(markerCoords, true);
@@ -483,6 +556,25 @@ function App() {
                                     )
                                         ? "Undo"
                                         : "Eliminate"}
+                                </Button>
+                                <Button
+                                    onClick={handleEliminateOthers}
+                                    variant="outlined"
+                                >
+                                    {eliminatedPolygons.find(
+                                        (poly) =>
+                                            poly.name ===
+                                            `${focusedMarker.name}-others`
+                                    ) ||
+                                    eliminatedMultiPolygons.find(
+                                        (poly) =>
+                                            poly.key ===
+                                            `district-${Number(
+                                                focusedMarker.name
+                                            )}-others`
+                                    )
+                                        ? "Undo"
+                                        : "Eliminate Others"}
                                 </Button>
                             </div>
                         </Popup>
