@@ -79,15 +79,16 @@ function App() {
     const [zapperMode, setZapperMode] = useState(false);
     const [highlightMyPolygon, setHighlightMyPolygon] = useState(false);
     const [voronoi, setVoronoi] = useState<d3.Voronoi<any> | null>(null);
+    // TODO: remove in favor of focusedMarker
     const [showPopup, setShowPopup] = useState(false);
-    const [supDistrictData, storeSupDistrictData] =
+    const [supDistrictData, setSupDistrictData] =
         useState<FeatureCollection | null>(null);
 
     useEffect(() => {
         fetch("https://data.sfgov.org/resource/f2zs-jevy.geojson")
             .then((response) => response.json())
             .then((data: FeatureCollection) => {
-                storeSupDistrictData(data);
+                setSupDistrictData(data);
             })
             .catch((error) => console.error("Error loading GeoJSON:", error));
     }, []);
@@ -200,6 +201,34 @@ function App() {
         setShowPopup(false);
     }
 
+    function handleStandardEliminiate() {
+        const filtered = eliminatedPolygons.filter(
+            (poly) => poly.name !== focusedMarker!.name
+        );
+        if (filtered.length !== eliminatedPolygons.length) {
+            setEliminatedPolygons(filtered);
+            return;
+        }
+
+        const projected = projectPoint(
+            focusedMarker!.longitude,
+            focusedMarker!.latitude
+        )!;
+        voronoi.cellPolygons().forEach((_: any, idx: number) => {
+            if (!voronoi.contains(idx, projected.x, projected.y)) {
+                return;
+            }
+            const cell = voronoi.cellPolygon(idx);
+            setEliminatedPolygons((prev) => [
+                ...prev,
+                {
+                    name: focusedMarker!.name || "no name",
+                    coords: unprojectCell(cell),
+                },
+            ]);
+        });
+    }
+
     function handleEliminate() {
         const map = mapRef.current;
         if (
@@ -215,68 +244,50 @@ function App() {
             return;
         }
 
-        const filtered = eliminatedPolygons.filter(
-            (poly) => poly.name !== focusedMarker.name
-        );
-        if (filtered.length !== eliminatedPolygons.length) {
-            setEliminatedPolygons(filtered);
-            return;
-        }
+        handleStandardEliminiate();
+    }
 
-        const projected = projectPoint(
-            focusedMarker.longitude,
-            focusedMarker.latitude
-        )!;
-        voronoi.cellPolygons().forEach((_: any, idx: number) => {
-            if (!voronoi.contains(idx, projected.x, projected.y)) {
-                return;
+    function handleSupervisorClick(e: MapMouseEvent) {
+        if (showPopup || !supDistrictData) return;
+        const clickedPoint = e.lngLat;
+        const projected = projectPoint(clickedPoint.lng, clickedPoint.lat)!;
+        const turfPt = turf.point([projected.x, projected.y]);
+        supDistrictData.features.forEach((feature) => {
+            const multiPolyCoords = (feature.geometry as MultiPolygon)
+                .coordinates;
+            const turfMultiPoly = turf.multiPolygon(
+                multiPolyCoords.map((polyCoords) => {
+                    return [
+                        polyCoords[0].map((coord) => {
+                            const projectedPt = projectPoint(
+                                coord[0],
+                                coord[1]
+                            )!;
+                            return [projectedPt.x, projectedPt.y];
+                        }),
+                    ];
+                })
+            );
+            if (turf.booleanPointInPolygon(turfPt, turfMultiPoly)) {
+                setFocusedMarker({
+                    longitude: clickedPoint.lng,
+                    latitude: clickedPoint.lat,
+                    name: feature.properties!.sup_dist_num,
+                });
+                setShowPopup(true);
             }
-            const cell = voronoi.cellPolygon(idx);
-            setEliminatedPolygons((prev) => [
-                ...prev,
-                {
-                    name: focusedMarker.name || "no name",
-                    coords: unprojectCell(cell),
-                },
-            ]);
         });
     }
 
     function handleMapClick(e: MapMouseEvent) {
         const map = mapRef.current;
         if (!map) return;
-        if (mapStatus == MapStatus.SUPERVISOR_DISTRICTS && supDistrictData) {
-            const clickedPoint = e.lngLat;
-            const projected = projectPoint(clickedPoint.lng, clickedPoint.lat)!;
-            const turfPt = turf.point([projected.x, projected.y]);
-            supDistrictData.features.forEach((feature) => {
-                const multiPolyCoords = (feature.geometry as MultiPolygon)
-                    .coordinates;
-                const turfMultiPoly = turf.multiPolygon(
-                    multiPolyCoords.map((polyCoords) => {
-                        return [
-                            polyCoords[0].map((coord) => {
-                                const projectedPt = projectPoint(
-                                    coord[0],
-                                    coord[1]
-                                )!;
-                                return [projectedPt.x, projectedPt.y];
-                            }),
-                        ];
-                    })
-                );
-                if (turf.booleanPointInPolygon(turfPt, turfMultiPoly)) {
-                    setFocusedMarker({
-                        longitude: clickedPoint.lng,
-                        latitude: clickedPoint.lat,
-                        name: feature.properties!.sup_dist_num,
-                    });
-                    setShowPopup(true);
-                }
-            });
-        }
         if (zapperMode && showEliminatedAreas) {
             handleZap(e);
+            return;
+        }
+        if (mapStatus == MapStatus.SUPERVISOR_DISTRICTS) {
+            handleSupervisorClick(e);
         }
     }
 
@@ -415,8 +426,11 @@ function App() {
                                     color="#ff0000"
                                 />
                             ))}
-                            {eliminatedMultiPolygons.map((poly) => (
-                                <MultiPolygonComponent geojsonData={poly} />
+                            {eliminatedMultiPolygons.map((poly, i) => (
+                                <MultiPolygonComponent
+                                    geojsonData={poly}
+                                    key={`eliminated-poly-${i}`}
+                                />
                             ))}
                         </>
                     )}
@@ -424,7 +438,10 @@ function App() {
                         <Popup
                             longitude={focusedMarker.longitude}
                             latitude={focusedMarker.latitude}
-                            onClose={() => setShowPopup(false)}
+                            onClose={() => {
+                                setFocusedMarker(null);
+                                setShowPopup(false);
+                            }}
                             closeButton={false}
                         >
                             <div className={styles.popup}>
