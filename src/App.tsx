@@ -27,6 +27,11 @@ import {
     THEATERS,
     MOUNTAINS,
     GOLF_COURSES,
+    HOSPITALS,
+    DOG_PARKS,
+    LIBRARIES,
+    FARMERS_MARKETS,
+    FOREIGN_CONSULATES,
 } from "./consts/coordinates";
 import Line from "./components/Line/Line";
 import Polygon from "./components/Polygon/Polygon";
@@ -43,6 +48,11 @@ export const MapStatus = {
     MOUNTAINS: 3,
     GOLF_COURSES: 4,
     SUPERVISOR_DISTRICTS: 5,
+    HOSPITALS: 6,
+    DOG_PARKS: 7,
+    LIBRARIES: 8,
+    FARMERS_MARKETS: 9,
+    FOREIGN_CONSULATES: 10,
 } as const;
 export type MapStatusType = (typeof MapStatus)[keyof typeof MapStatus];
 
@@ -120,6 +130,21 @@ function App() {
                 break;
             case MapStatus.GOLF_COURSES:
                 setMarkerCoords(GOLF_COURSES);
+                break;
+            case MapStatus.HOSPITALS:
+                setMarkerCoords(HOSPITALS);
+                break;
+            case MapStatus.DOG_PARKS:
+                setMarkerCoords(DOG_PARKS);
+                break;
+            case MapStatus.LIBRARIES:
+                setMarkerCoords(LIBRARIES);
+                break;
+            case MapStatus.FARMERS_MARKETS:
+                setMarkerCoords(FARMERS_MARKETS);
+                break;
+            case MapStatus.FOREIGN_CONSULATES:
+                setMarkerCoords(FOREIGN_CONSULATES);
                 break;
             default:
                 setMarkerCoords([]);

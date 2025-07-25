@@ -51,6 +51,15 @@ export default function Header({
                     <MenuItem value={MapStatus.SUPERVISOR_DISTRICTS}>
                         Supervisor Districts
                     </MenuItem>
+                    <MenuItem value={MapStatus.HOSPITALS}>Hospitals</MenuItem>
+                    <MenuItem value={MapStatus.DOG_PARKS}>Dog Parks</MenuItem>
+                    <MenuItem value={MapStatus.LIBRARIES}>Libraries</MenuItem>
+                    <MenuItem value={MapStatus.FARMERS_MARKETS}>
+                        Farmers Markets
+                    </MenuItem>
+                    <MenuItem value={MapStatus.FOREIGN_CONSULATES}>
+                        Foreign Consulates
+                    </MenuItem>
                 </Select>
             </FormControl>
             <FormControl>
