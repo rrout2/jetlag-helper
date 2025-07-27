@@ -17,7 +17,7 @@ import type {
 // @ts-expect-error No type declaration
 import * as d3 from "d3";
 import * as turf from "@turf/turf";
-import { Button } from "@mui/material";
+import { Button, useTheme } from "@mui/material";
 import "mapbox-gl/dist/mapbox-gl.css";
 import {
     DEFAULT_VIEW_STATE,
@@ -75,7 +75,9 @@ type AppProps = {
     isDarkMode: boolean;
 };
 
-function App({ toggleDarkMode, isDarkMode }: AppProps) {
+function App({ toggleDarkMode }: AppProps) {
+    const theme = useTheme();
+    const isDarkMode = theme.palette.mode === "dark";
     const mapRef = useRef<MapRef>(null);
     const geoControlRef = useRef<mapboxgl.GeolocateControl>(null);
     const [viewState, setViewState] = useState(DEFAULT_VIEW_STATE);
@@ -521,7 +523,9 @@ function App({ toggleDarkMode, isDarkMode }: AppProps) {
                         <Line
                             key={`line-${i}`}
                             coords={lineCoord}
-                            color={isDarkMode ? "#b0b0b0" : "#000000"}
+                            color={theme.palette.getContrastText(
+                                theme.palette.background.default
+                            )}
                             width={2}
                         />
                     ))}
@@ -546,7 +550,7 @@ function App({ toggleDarkMode, isDarkMode }: AppProps) {
                                 .map((lineCoord) => (
                                     <Polygon
                                         coords={lineCoord}
-                                        color="#0000ff"
+                                        color={theme.palette.primary.main}
                                         border={false}
                                     />
                                 ))}
@@ -609,7 +613,7 @@ function App({ toggleDarkMode, isDarkMode }: AppProps) {
                                                 } as KeyedMultiPolygon
                                             }
                                             key={`my-poly-${i}`}
-                                            color="#0000ff"
+                                            color={theme.palette.primary.main}
                                         />
                                     ))}
                         </>
@@ -644,7 +648,8 @@ function App({ toggleDarkMode, isDarkMode }: AppProps) {
                             <div
                                 className={styles.popup}
                                 style={{
-                                    background: isDarkMode ? "#1a1a1a" : "#fff",
+                                    background:
+                                        theme.palette.background.default,
                                 }}
                             >
                                 {focusedMarker.name}
@@ -698,9 +703,10 @@ function App({ toggleDarkMode, isDarkMode }: AppProps) {
                                 <Layer
                                     type="line"
                                     paint={{
-                                        "line-color": isDarkMode
-                                            ? "#b0b0b0"
-                                            : "#000000",
+                                        "line-color":
+                                            theme.palette.getContrastText(
+                                                theme.palette.background.default
+                                            ),
                                         "line-width": 2,
                                     }}
                                 />
