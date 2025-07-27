@@ -609,19 +609,12 @@ function App() {
                                     color="#ff0000"
                                 />
                             ))}
-                            {eliminatedMultiPolygons.map((poly, i) => {
-                                console.log(
-                                    "other rendering",
-                                    i,
-                                    poly.coordinates
-                                );
-                                return (
-                                    <MultiPolygonComponent
-                                        geojsonData={poly}
-                                        key={`eliminated-poly-${i}`}
-                                    />
-                                );
-                            })}
+                            {eliminatedMultiPolygons.map((poly, i) => (
+                                <MultiPolygonComponent
+                                    geojsonData={poly}
+                                    key={`eliminated-poly-${i}`}
+                                />
+                            ))}
                         </>
                     )}
                     {focusedMarker && showPopup && (
