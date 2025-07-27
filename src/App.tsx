@@ -67,7 +67,15 @@ type KeyedMultiPolygon = MultiPolygon & {
     key: string;
 };
 
-function App() {
+const mapboxLightStyle = "mapbox://styles/mapbox/streets-v12";
+const mapboxDarkStyle = "mapbox://styles/mapbox/dark-v10";
+
+type AppProps = {
+    toggleDarkMode: () => void;
+    isDarkMode: boolean;
+};
+
+function App({ toggleDarkMode, isDarkMode }: AppProps) {
     const mapRef = useRef<MapRef>(null);
     const geoControlRef = useRef<mapboxgl.GeolocateControl>(null);
     const [viewState, setViewState] = useState(DEFAULT_VIEW_STATE);
@@ -445,6 +453,8 @@ function App() {
                 setZapperMode={setZapperMode}
                 highlightMyPolygon={highlightMyPolygon}
                 setHighlightMyPolygon={setHighlightMyPolygon}
+                toggleDarkMode={toggleDarkMode}
+                isDarkMode={isDarkMode}
             />
             <div className={styles.mapWrapper}>
                 <Map
@@ -455,7 +465,7 @@ function App() {
                     }
                     mapboxAccessToken={MAPBOX_TOKEN}
                     style={{ width: "100%", height: "100%" }}
-                    mapStyle="mapbox://styles/mapbox/streets-v12"
+                    mapStyle={isDarkMode ? mapboxDarkStyle : mapboxLightStyle}
                     onMoveEnd={() => {
                         computeVoronoiDiagram(markerCoords, true);
                     }}
@@ -497,7 +507,9 @@ function App() {
                         >
                             <div
                                 style={{
-                                    background: "#000000",
+                                    background: isDarkMode
+                                        ? "#b0b0b0"
+                                        : "#000000",
                                     width: "20px",
                                     height: "20px",
                                     borderRadius: "50%",
@@ -509,7 +521,7 @@ function App() {
                         <Line
                             key={`line-${i}`}
                             coords={lineCoord}
-                            color="#000000"
+                            color={isDarkMode ? "#b0b0b0" : "#000000"}
                             width={2}
                         />
                     ))}
@@ -629,7 +641,12 @@ function App() {
                             }}
                             closeButton={false}
                         >
-                            <div className={styles.popup}>
+                            <div
+                                className={styles.popup}
+                                style={{
+                                    background: isDarkMode ? "#1a1a1a" : "#fff",
+                                }}
+                            >
                                 {focusedMarker.name}
                                 <Button
                                     onClick={handleEliminate}
@@ -681,7 +698,9 @@ function App() {
                                 <Layer
                                     type="line"
                                     paint={{
-                                        "line-color": "#000000",
+                                        "line-color": isDarkMode
+                                            ? "#b0b0b0"
+                                            : "#000000",
                                         "line-width": 2,
                                     }}
                                 />

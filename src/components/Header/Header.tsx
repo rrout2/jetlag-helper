@@ -5,9 +5,11 @@ import {
     MenuItem,
     FormControlLabel,
     Switch,
+    IconButton,
 } from "@mui/material";
 import styles from "./Header.module.css";
 import { MapStatus, type MapStatusType } from "../../App";
+import { Brightness7, Brightness4 } from "@mui/icons-material";
 
 type HeaderProps = {
     mapStatus: MapStatusType;
@@ -18,6 +20,8 @@ type HeaderProps = {
     setZapperMode: (mode: boolean) => void;
     highlightMyPolygon: boolean;
     setHighlightMyPolygon: (show: boolean) => void;
+    toggleDarkMode: () => void;
+    isDarkMode: boolean;
 };
 
 export default function Header({
@@ -29,9 +33,14 @@ export default function Header({
     setZapperMode,
     highlightMyPolygon,
     setHighlightMyPolygon,
+    toggleDarkMode,
+    isDarkMode,
 }: HeaderProps) {
     return (
         <div className={styles.header}>
+            <IconButton onClick={toggleDarkMode} color="inherit">
+                {isDarkMode ? <Brightness7 /> : <Brightness4 />}
+            </IconButton>
             <FormControl className={styles.dropdown}>
                 <InputLabel>Map Display</InputLabel>
                 <Select
