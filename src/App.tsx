@@ -511,30 +511,95 @@ function App() {
                             width={2}
                         />
                     ))}
-                    {highlightMyPolygon &&
-                        lineCoords
-                            .filter((lineCoord) => {
-                                const turfPoly = turf.polygon([
-                                    lineCoord.map((pt) => [
-                                        pt.longitude,
-                                        pt.latitude,
-                                    ]),
-                                ]);
-                                return turf.booleanPointInPolygon(
-                                    turf.point([
-                                        currentLocation.longitude,
-                                        currentLocation.latitude,
-                                    ]),
-                                    turfPoly
-                                );
-                            })
-                            .map((lineCoord) => (
-                                <Polygon
-                                    coords={lineCoord}
-                                    color="#0000ff"
-                                    border={false}
-                                />
-                            ))}
+                    {highlightMyPolygon && (
+                        <>
+                            {lineCoords
+                                .filter((lineCoord) => {
+                                    const turfPoly = turf.polygon([
+                                        lineCoord.map((pt) => [
+                                            pt.longitude,
+                                            pt.latitude,
+                                        ]),
+                                    ]);
+                                    return turf.booleanPointInPolygon(
+                                        turf.point([
+                                            currentLocation.longitude,
+                                            currentLocation.latitude,
+                                        ]),
+                                        turfPoly
+                                    );
+                                })
+                                .map((lineCoord) => (
+                                    <Polygon
+                                        coords={lineCoord}
+                                        color="#0000ff"
+                                        border={false}
+                                    />
+                                ))}
+                            {supDistrictData &&
+                                mapStatus === MapStatus.SUPERVISOR_DISTRICTS &&
+                                supDistrictData.features
+                                    .map((feature) => {
+                                        const multiPolyCoords = (
+                                            feature.geometry as MultiPolygon
+                                        ).coordinates;
+                                        const turfMultiPoly = turf.multiPolygon(
+                                            multiPolyCoords.map(
+                                                (polyCoords) => {
+                                                    return [
+                                                        polyCoords[0].map(
+                                                            (coord) => {
+                                                                const projectedPt =
+                                                                    projectPoint(
+                                                                        coord[0],
+                                                                        coord[1]
+                                                                    )!;
+                                                                return [
+                                                                    projectedPt.x,
+                                                                    projectedPt.y,
+                                                                ];
+                                                            }
+                                                        ),
+                                                    ];
+                                                }
+                                            )
+                                        );
+                                        return {
+                                            turfMultiPoly,
+                                            multiPolyCoords,
+                                        };
+                                    })
+                                    .filter(({ turfMultiPoly }) => {
+                                        const projectedPt = projectPoint(
+                                            currentLocation.longitude,
+                                            currentLocation.latitude
+                                        )!;
+                                        const containsPoint =
+                                            turf.booleanPointInPolygon(
+                                                turf.point([
+                                                    projectedPt.x,
+                                                    projectedPt.y,
+                                                ]),
+                                                turfMultiPoly
+                                            );
+                                        return containsPoint;
+                                    })
+                                    .map(({ multiPolyCoords }, i) => (
+                                        <MultiPolygonComponent
+                                            geojsonData={
+                                                {
+                                                    key: `my-poly-${i}`,
+                                                    type: "MultiPolygon",
+                                                    coordinates:
+                                                        multiPolyCoords,
+                                                } as KeyedMultiPolygon
+                                            }
+                                            key={`my-poly-${i}`}
+                                            color="#0000ff"
+                                        />
+                                    ))}
+                        </>
+                    )}
                     {showEliminatedAreas && (
                         <>
                             {[...eliminatedPolygons].map((poly, i) => (
@@ -544,12 +609,19 @@ function App() {
                                     color="#ff0000"
                                 />
                             ))}
-                            {eliminatedMultiPolygons.map((poly, i) => (
-                                <MultiPolygonComponent
-                                    geojsonData={poly}
-                                    key={`eliminated-poly-${i}`}
-                                />
-                            ))}
+                            {eliminatedMultiPolygons.map((poly, i) => {
+                                console.log(
+                                    "other rendering",
+                                    i,
+                                    poly.coordinates
+                                );
+                                return (
+                                    <MultiPolygonComponent
+                                        geojsonData={poly}
+                                        key={`eliminated-poly-${i}`}
+                                    />
+                                );
+                            })}
                         </>
                     )}
                     {focusedMarker && showPopup && (
