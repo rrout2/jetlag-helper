@@ -5,6 +5,7 @@ import Map, {
     GeolocateControl,
     Layer,
     Marker,
+    NavigationControl,
     Popup,
     Source,
 } from "react-map-gl/mapbox";
@@ -453,7 +454,7 @@ function App() {
                         setViewState(evt.viewState)
                     }
                     mapboxAccessToken={MAPBOX_TOKEN}
-                    style={{ width: "97%", height: "100%" }}
+                    style={{ width: "100%", height: "100%" }}
                     mapStyle="mapbox://styles/mapbox/streets-v12"
                     onMoveEnd={() => {
                         computeVoronoiDiagram(markerCoords, true);
@@ -468,6 +469,7 @@ function App() {
                         computeVoronoiDiagram(markerCoords, true);
                     }}
                     onClick={handleMapClick}
+                    maxPitch={0}
                 >
                     <GeolocateControl
                         trackUserLocation={true}
@@ -480,7 +482,7 @@ function App() {
                         }}
                         ref={geoControlRef}
                     />
-
+                    <NavigationControl position="bottom-right" />
                     {markerCoords.map((coord) => (
                         <Marker
                             key={`${coord.longitude}-${coord.latitude}`}

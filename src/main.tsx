@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
+import "./index.css";
 import { MapProvider } from "react-map-gl/mapbox-legacy";
 
 createRoot(document.getElementById("root")!).render(
