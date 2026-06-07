@@ -17,7 +17,22 @@ import type {
 // @ts-expect-error No type declaration
 import * as d3 from "d3";
 import * as turf from "@turf/turf";
-import { Button, useTheme } from "@mui/material";
+import {
+    Button,
+    useTheme,
+    IconButton,
+    Popover,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    FormControlLabel,
+    Switch,
+    Tooltip,
+    Chip,
+    Divider,
+} from "@mui/material";
+import { Settings, Delete } from "@mui/icons-material";
 import "mapbox-gl/dist/mapbox-gl.css";
 import {
     DEFAULT_VIEW_STATE,
@@ -36,7 +51,6 @@ import {
 } from "./consts/coordinates";
 import Line from "./components/Line/Line";
 import Polygon from "./components/Polygon/Polygon";
-import Header from "./components/Header/Header";
 import type { FeatureCollection, MultiPolygon } from "geojson";
 import MultiPolygonComponent from "./components/MultiPolygon/MultiPolygon";
 
@@ -701,26 +715,12 @@ function App({ toggleDarkMode }: AppProps) {
         });
     }
 
+    const [settingsAnchorEl, setSettingsAnchorEl] =
+        useState<HTMLElement | null>(null);
+    const settingsOpen = Boolean(settingsAnchorEl);
+
     return (
         <div className={styles.app}>
-            <Header
-                mapStatus={mapStatus}
-                setMapStatus={setMapStatus}
-                showEliminatedAreas={showEliminatedAreas}
-                setShowEliminatedAreas={setShowEliminatedAreas}
-                zapperMode={zapperMode}
-                setZapperMode={setZapperMode}
-                highlightMyPolygon={highlightMyPolygon}
-                setHighlightMyPolygon={setHighlightMyPolygon}
-                toggleDarkMode={toggleDarkMode}
-                isDarkMode={isDarkMode}
-                isPlacingThermometer={isPlacingThermometer}
-                setIsPlacingThermometer={setIsPlacingThermometer}
-                thermometerLength={thermometerLength}
-                setThermometerLength={setThermometerLength}
-                thermometerPairs={thermometerPairs}
-                removeThermometer={removeThermometer}
-            />
             <div className={styles.mapWrapper}>
                 <Map
                     ref={mapRef}
@@ -1070,7 +1070,232 @@ function App({ toggleDarkMode }: AppProps) {
                                 />
                             </Source>
                         )}
+                    <div
+                        style={{
+                            position: "absolute",
+                            top: 50,
+                            right: 7,
+                            zIndex: 10,
+                        }}
+                    >
+                        <IconButton
+                            onClick={(e) =>
+                                setSettingsAnchorEl(
+                                    settingsOpen ? null : e.currentTarget
+                                )
+                            }
+                            size="small"
+                            sx={{
+                                bgcolor: "rgba(0,0,0,0.6)",
+                                color: "#fff",
+                                "&:hover": {
+                                    bgcolor: "rgba(0,0,0,0.8)",
+                                },
+                            }}
+                        >
+                            <Settings />
+                        </IconButton>
+                    </div>
                 </Map>
+                <Popover
+                    open={settingsOpen}
+                    anchorEl={settingsAnchorEl}
+                    onClose={() => setSettingsAnchorEl(null)}
+                    anchorOrigin={{
+                        vertical: "bottom",
+                        horizontal: "right",
+                    }}
+                    transformOrigin={{
+                        vertical: "top",
+                        horizontal: "right",
+                    }}
+                    slotProps={{
+                        paper: { sx: { p: 2, minWidth: 220 } },
+                    }}
+                >
+                    <div className={styles.settingsContent}>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    size="small"
+                                    checked={isDarkMode}
+                                    onChange={toggleDarkMode}
+                                />
+                            }
+                            label="Dark Mode"
+                            labelPlacement="end"
+                            className={styles.switchLabel}
+                        />
+
+                        <Divider />
+
+                        <FormControl size="small" fullWidth>
+                            <InputLabel>Map</InputLabel>
+                            <Select
+                                value={mapStatus}
+                                label="Map"
+                                onChange={(event) =>
+                                    setMapStatus(
+                                        event.target.value as MapStatusType
+                                    )
+                                }
+                            >
+                                <MenuItem value={MapStatus.NONE}>
+                                    None
+                                </MenuItem>
+                                <MenuItem value={MapStatus.AQUARIUM}>
+                                    Aquariums
+                                </MenuItem>
+                                <MenuItem value={MapStatus.THEATERS}>
+                                    Theaters
+                                </MenuItem>
+                                <MenuItem value={MapStatus.MOUNTAINS}>
+                                    Mountains
+                                </MenuItem>
+                                <MenuItem value={MapStatus.GOLF_COURSES}>
+                                    Golf
+                                </MenuItem>
+                                <MenuItem value={MapStatus.SUPERVISOR_DISTRICTS}>
+                                    Districts
+                                </MenuItem>
+                                <MenuItem value={MapStatus.HOSPITALS}>
+                                    Hospitals
+                                </MenuItem>
+                                <MenuItem value={MapStatus.DOG_PARKS}>
+                                    Dog Parks
+                                </MenuItem>
+                                <MenuItem value={MapStatus.LIBRARIES}>
+                                    Libraries
+                                </MenuItem>
+                                <MenuItem value={MapStatus.FARMERS_MARKETS}>
+                                    Farmers Mkt
+                                </MenuItem>
+                                <MenuItem value={MapStatus.FOREIGN_CONSULATES}>
+                                    Consulates
+                                </MenuItem>
+                            </Select>
+                        </FormControl>
+
+                        <Divider />
+
+                        <span className={styles.sectionLabel}>
+                            Overlays
+                        </span>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    size="small"
+                                    checked={showEliminatedAreas}
+                                    onChange={(e) =>
+                                        setShowEliminatedAreas(
+                                            e.target.checked
+                                        )
+                                    }
+                                />
+                            }
+                            label="Eliminated"
+                            labelPlacement="end"
+                            className={styles.switchLabel}
+                        />
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    size="small"
+                                    checked={zapperMode}
+                                    onChange={(e) =>
+                                        setZapperMode(e.target.checked)
+                                    }
+                                />
+                            }
+                            label="Zapper"
+                            labelPlacement="end"
+                            className={styles.switchLabel}
+                        />
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    size="small"
+                                    checked={highlightMyPolygon}
+                                    onChange={(e) =>
+                                        setHighlightMyPolygon(
+                                            e.target.checked
+                                        )
+                                    }
+                                />
+                            }
+                            label="Highlight"
+                            labelPlacement="end"
+                            className={styles.switchLabel}
+                        />
+
+                        <Divider />
+
+                        <span className={styles.sectionLabel}>
+                            Thermometer
+                        </span>
+                        <div className={styles.thermoRow}>
+                            <Tooltip title="Add a thermometer pair">
+                                <Button
+                                    variant={
+                                        isPlacingThermometer
+                                            ? "contained"
+                                            : "outlined"
+                                    }
+                                    color={
+                                        isPlacingThermometer
+                                            ? "warning"
+                                            : "secondary"
+                                    }
+                                    size="small"
+                                    onClick={() =>
+                                        setIsPlacingThermometer(
+                                            !isPlacingThermometer
+                                        )
+                                    }
+                                >
+                                    {isPlacingThermometer
+                                        ? "Adding"
+                                        : "Add"}
+                                </Button>
+                            </Tooltip>
+                            <FormControl size="small">
+                                <Select
+                                    value={thermometerLength}
+                                    onChange={(e) =>
+                                        setThermometerLength(
+                                            e.target.value as number
+                                        )
+                                    }
+                                    disabled={isPlacingThermometer}
+                                >
+                                    <MenuItem value={0.5}>
+                                        0.5 mi
+                                    </MenuItem>
+                                    <MenuItem value={1}>1 mi</MenuItem>
+                                    <MenuItem value={2}>2 mi</MenuItem>
+                                    <MenuItem value={0}>Custom</MenuItem>
+                                </Select>
+                            </FormControl>
+                        </div>
+                        {thermometerPairs.length > 0 && (
+                            <div className={styles.thermoChips}>
+                                {thermometerPairs.map((pair, i) => (
+                                    <Chip
+                                        key={pair.id}
+                                        label={`T${i + 1}`}
+                                        size="small"
+                                        onDelete={() =>
+                                            removeThermometer(pair.id)
+                                        }
+                                        deleteIcon={<Delete />}
+                                        color="secondary"
+                                        variant="outlined"
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </Popover>
             </div>
         </div>
     );
