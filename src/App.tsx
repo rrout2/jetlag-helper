@@ -117,6 +117,8 @@ function App({ toggleDarkMode }: AppProps) {
     const [thermometerFirstPoint, setThermometerFirstPoint] =
         useState<MapCoordinates | null>(null);
     const [thermometerLength, setThermometerLength] = useState<number>(1);
+    const [thermometerPreview, setThermometerPreview] =
+        useState<MapCoordinates | null>(null);
     const [thermometerCells, setThermometerCells] = useState<
         MapCoordinates[][]
     >([]);
@@ -136,6 +138,7 @@ function App({ toggleDarkMode }: AppProps) {
     useEffect(() => {
         if (!isPlacingThermometer) {
             setThermometerFirstPoint(null);
+            setThermometerPreview(null);
         }
     }, [isPlacingThermometer]);
 
@@ -495,6 +498,7 @@ function App({ toggleDarkMode }: AppProps) {
                 },
             ]);
             setThermometerFirstPoint(null);
+            setThermometerPreview(null);
             setIsPlacingThermometer(false);
         }
     }
@@ -625,6 +629,34 @@ function App({ toggleDarkMode }: AppProps) {
         }
     }
 
+    function handleMapMouseMove(e: MapMouseEvent) {
+        if (
+            isPlacingThermometer &&
+            thermometerFirstPoint &&
+            thermometerLength > 0
+        ) {
+            const from = turf.point([
+                thermometerFirstPoint.longitude,
+                thermometerFirstPoint.latitude,
+            ]);
+            const to = turf.point([e.lngLat.lng, e.lngLat.lat]);
+            const dist = turf.distance(from, to, { units: "miles" });
+            if (dist > 0) {
+                const bearing = turf.bearing(from, to);
+                const dest = turf.destination(
+                    from,
+                    thermometerLength,
+                    bearing,
+                    { units: "miles" }
+                );
+                setThermometerPreview({
+                    longitude: dest.geometry.coordinates[0],
+                    latitude: dest.geometry.coordinates[1],
+                });
+            }
+        }
+    }
+
     // if any eliminated polygon contains the clicked point, remove it
     function handleZap(e: MapMouseEvent) {
         const clickedPoint = e.lngLat;
@@ -716,6 +748,7 @@ function App({ toggleDarkMode }: AppProps) {
                         computeThermometerVoronoi(true);
                     }}
                     onClick={handleMapClick}
+                    onMouseMove={handleMapMouseMove}
                     maxPitch={0}
                 >
                     <GeolocateControl
@@ -789,6 +822,23 @@ function App({ toggleDarkMode }: AppProps) {
                                     height: "18px",
                                     borderRadius: "50%",
                                     border: "3px solid #fff",
+                                }}
+                            />
+                        </Marker>
+                    )}
+                    {thermometerPreview && (
+                        <Marker
+                            longitude={thermometerPreview.longitude}
+                            latitude={thermometerPreview.latitude}
+                            anchor="center"
+                        >
+                            <div
+                                style={{
+                                    background: "rgba(255, 68, 255, 0.4)",
+                                    width: "16px",
+                                    height: "16px",
+                                    borderRadius: "50%",
+                                    border: "2px dashed rgba(255, 68, 255, 0.6)",
                                 }}
                             />
                         </Marker>
