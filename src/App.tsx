@@ -105,6 +105,25 @@ function App({ toggleDarkMode }: AppProps) {
     const [supDistrictData, setSupDistrictData] =
         useState<FeatureCollection | null>(null);
 
+    const [thermometerPairs, setThermometerPairs] = useState<
+        Array<{
+            id: string;
+            pointA: MapCoordinates;
+            pointB: MapCoordinates;
+            length: number;
+        }>
+    >([]);
+    const [isPlacingThermometer, setIsPlacingThermometer] = useState(false);
+    const [thermometerFirstPoint, setThermometerFirstPoint] =
+        useState<MapCoordinates | null>(null);
+    const [thermometerLength, setThermometerLength] = useState<number>(1);
+    const [thermometerCells, setThermometerCells] = useState<
+        MapCoordinates[][]
+    >([]);
+    const [thermometerVoronoiList, setThermometerVoronoiList] = useState<
+        d3.Voronoi<any>[]
+    >([]);
+
     useEffect(() => {
         fetch("https://data.sfgov.org/resource/f2zs-jevy.geojson")
             .then((response) => response.json())
@@ -115,8 +134,18 @@ function App({ toggleDarkMode }: AppProps) {
     }, []);
 
     useEffect(() => {
+        if (!isPlacingThermometer) {
+            setThermometerFirstPoint(null);
+        }
+    }, [isPlacingThermometer]);
+
+    useEffect(() => {
         computeVoronoiDiagram(markerCoords);
     }, [markerCoords]);
+
+    useEffect(() => {
+        computeThermometerVoronoi();
+    }, [thermometerPairs]);
 
     useEffect(() => {
         // Activate as soon as the control is loaded
@@ -205,6 +234,51 @@ function App({ toggleDarkMode }: AppProps) {
             .cellPolygons()
             .map(unprojectCell) as MapCoordinates[][];
         setLineCoords([...newCoords]);
+    }
+
+    function computeThermometerVoronoi(onlyVoronoi = false) {
+        if (!mapRef.current) {
+            setThermometerCells([]);
+            setThermometerVoronoiList([]);
+            return;
+        }
+        if (thermometerPairs.length === 0) {
+            setThermometerVoronoiList([]);
+            if (!onlyVoronoi) setThermometerCells([]);
+            return;
+        }
+
+        const vors: d3.Voronoi<any>[] = [];
+        const allCells: MapCoordinates[][] = [];
+
+        const tl = projectPoint(TOP_LEFT.longitude, TOP_LEFT.latitude)!;
+        const br = projectPoint(BOTTOM_RIGHT.longitude, BOTTOM_RIGHT.latitude)!;
+
+        for (const pair of thermometerPairs) {
+            const points = [pair.pointA, pair.pointB];
+            const projectedPoints = points
+                .map((pt) => projectPoint(pt.longitude, pt.latitude)!)
+                .map((pt) => [pt.x, pt.y]);
+            const delaunay = d3.Delaunay.from(
+                projectedPoints,
+                (d: number[]) => d[0],
+                (d: number[]) => d[1]
+            );
+            const vor = delaunay.voronoi([tl.x, tl.y, br.x, br.y]);
+            vors.push(vor);
+
+            if (!onlyVoronoi) {
+                const cells = vor
+                    .cellPolygons()
+                    .map(unprojectCell) as MapCoordinates[][];
+                allCells.push(...cells);
+            }
+        }
+
+        setThermometerVoronoiList(vors);
+        if (!onlyVoronoi) {
+            setThermometerCells(allCells);
+        }
     }
 
     function handleSupervisorDistrictEliminate(invert = false) {
@@ -322,11 +396,11 @@ function App({ toggleDarkMode }: AppProps) {
 
     function handleEliminate() {
         const map = mapRef.current;
-        if (
-            !(voronoi || mapStatus === MapStatus.SUPERVISOR_DISTRICTS) ||
-            !map ||
-            !focusedMarker
-        ) {
+        const hasAnyVoronoi =
+            voronoi !== null ||
+            mapStatus === MapStatus.SUPERVISOR_DISTRICTS ||
+            thermometerVoronoiList.length > 0;
+        if (!hasAnyVoronoi || !map || !focusedMarker) {
             return;
         }
 
@@ -335,16 +409,22 @@ function App({ toggleDarkMode }: AppProps) {
             return;
         }
 
+        const thermoIdx = findThermometerPairIdx(focusedMarker);
+        if (thermoIdx !== null) {
+            handleThermometerEliminate(thermoIdx, false);
+            return;
+        }
+
         handleStandardEliminiate();
     }
 
     function handleEliminateOthers() {
         const map = mapRef.current;
-        if (
-            !(voronoi || mapStatus === MapStatus.SUPERVISOR_DISTRICTS) ||
-            !map ||
-            !focusedMarker
-        ) {
+        const hasAnyVoronoi =
+            voronoi !== null ||
+            mapStatus === MapStatus.SUPERVISOR_DISTRICTS ||
+            thermometerVoronoiList.length > 0;
+        if (!hasAnyVoronoi || !map || !focusedMarker) {
             return;
         }
 
@@ -353,7 +433,148 @@ function App({ toggleDarkMode }: AppProps) {
             return;
         }
 
+        const thermoIdx = findThermometerPairIdx(focusedMarker);
+        if (thermoIdx !== null) {
+            handleThermometerEliminate(thermoIdx, true);
+            return;
+        }
+
         handleStandardEliminiate(true);
+    }
+
+    const thermoPointIdRef = useRef(0);
+
+    function handleThermometerPlacement(e: MapMouseEvent) {
+        if (!thermometerFirstPoint) {
+            const pointA: MapCoordinates = {
+                longitude: e.lngLat.lng,
+                latitude: e.lngLat.lat,
+                name: `tp-${thermoPointIdRef.current++}`,
+            };
+            setThermometerFirstPoint(pointA);
+        } else {
+            let pointB: MapCoordinates = {
+                longitude: e.lngLat.lng,
+                latitude: e.lngLat.lat,
+                name: `tp-${thermoPointIdRef.current++}`,
+            };
+
+            if (thermometerLength > 0) {
+                const from = turf.point([
+                    thermometerFirstPoint.longitude,
+                    thermometerFirstPoint.latitude,
+                ]);
+                const to = turf.point([
+                    pointB.longitude,
+                    pointB.latitude,
+                ]);
+                const dist = turf.distance(from, to, { units: "miles" });
+                if (dist > 0) {
+                    const bearing = turf.bearing(from, to);
+                    const dest = turf.destination(
+                        from,
+                        thermometerLength,
+                        bearing,
+                        { units: "miles" }
+                    );
+                    pointB = {
+                        longitude: dest.geometry.coordinates[0],
+                        latitude: dest.geometry.coordinates[1],
+                        name: `tp-${thermoPointIdRef.current++}`,
+                    };
+                }
+            }
+
+            setThermometerPairs((prev) => [
+                ...prev,
+                {
+                    id: `thermo-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                    pointA: { ...thermometerFirstPoint },
+                    pointB,
+                    length: thermometerLength,
+                },
+            ]);
+            setThermometerFirstPoint(null);
+            setIsPlacingThermometer(false);
+        }
+    }
+
+    function removeThermometer(id: string) {
+        setThermometerPairs((prev) => prev.filter((t) => t.id !== id));
+    }
+
+    function findThermometerPairIdx(point: MapCoordinates): number | null {
+        for (let i = 0; i < thermometerPairs.length; i++) {
+            const pair = thermometerPairs[i];
+            if (
+                pair.pointA.longitude === point.longitude &&
+                pair.pointA.latitude === point.latitude
+            ) {
+                return i;
+            }
+            if (
+                pair.pointB.longitude === point.longitude &&
+                pair.pointB.latitude === point.latitude
+            ) {
+                return i;
+            }
+        }
+        return null;
+    }
+
+    function handleThermometerEliminate(pairIdx: number, invert = false) {
+        const vor = thermometerVoronoiList[pairIdx];
+        if (!vor) return;
+
+        const projected = projectPoint(
+            focusedMarker!.longitude,
+            focusedMarker!.latitude
+        )!;
+
+        if (!invert) {
+            const filtered = eliminatedPolygons.filter(
+                (poly) => poly.name !== focusedMarker!.name
+            );
+            if (filtered.length !== eliminatedPolygons.length) {
+                setEliminatedPolygons(filtered);
+                setFocusedMarker(null);
+                setShowPopup(false);
+                return;
+            }
+        } else {
+            const filtered = eliminatedPolygons.filter(
+                (poly) =>
+                    poly.name !== `${focusedMarker!.name}-others`
+            );
+            if (filtered.length !== eliminatedPolygons.length) {
+                setEliminatedPolygons(filtered);
+                setFocusedMarker(null);
+                setShowPopup(false);
+                return;
+            }
+        }
+
+        vor.cellPolygons().forEach((_: any, idx: number) => {
+            const contains = vor.contains(
+                idx,
+                projected.x,
+                projected.y
+            ) as boolean;
+            if ((!contains && !invert) || (contains && invert)) return;
+            const cell = vor.cellPolygon(idx);
+            setEliminatedPolygons((prev) => [
+                ...prev,
+                {
+                    name: invert
+                        ? `${focusedMarker!.name}-others`
+                        : focusedMarker!.name || "no name",
+                    coords: unprojectCell(cell),
+                },
+            ]);
+        });
+
+        setFocusedMarker(null);
+        setShowPopup(false);
     }
 
     function handleSupervisorClick(e: MapMouseEvent) {
@@ -389,6 +610,10 @@ function App({ toggleDarkMode }: AppProps) {
     }
 
     function handleMapClick(e: MapMouseEvent) {
+        if (isPlacingThermometer) {
+            handleThermometerPlacement(e);
+            return;
+        }
         const map = mapRef.current;
         if (!map) return;
         if (zapperMode && showEliminatedAreas) {
@@ -457,6 +682,12 @@ function App({ toggleDarkMode }: AppProps) {
                 setHighlightMyPolygon={setHighlightMyPolygon}
                 toggleDarkMode={toggleDarkMode}
                 isDarkMode={isDarkMode}
+                isPlacingThermometer={isPlacingThermometer}
+                setIsPlacingThermometer={setIsPlacingThermometer}
+                thermometerLength={thermometerLength}
+                setThermometerLength={setThermometerLength}
+                thermometerPairs={thermometerPairs}
+                removeThermometer={removeThermometer}
             />
             <div className={styles.mapWrapper}>
                 <Map
@@ -470,15 +701,19 @@ function App({ toggleDarkMode }: AppProps) {
                     mapStyle={isDarkMode ? mapboxDarkStyle : mapboxLightStyle}
                     onMoveEnd={() => {
                         computeVoronoiDiagram(markerCoords, true);
+                        computeThermometerVoronoi(true);
                     }}
                     onDragEnd={() => {
                         computeVoronoiDiagram(markerCoords, true);
+                        computeThermometerVoronoi(true);
                     }}
                     onZoomEnd={() => {
                         computeVoronoiDiagram(markerCoords, true);
+                        computeThermometerVoronoi(true);
                     }}
                     onRotateEnd={() => {
                         computeVoronoiDiagram(markerCoords, true);
+                        computeThermometerVoronoi(true);
                     }}
                     onClick={handleMapClick}
                     maxPitch={0}
@@ -519,6 +754,71 @@ function App({ toggleDarkMode }: AppProps) {
                             />
                         </Marker>
                     ))}
+                    {isPlacingThermometer && (
+                        <div
+                            style={{
+                                position: "absolute",
+                                top: "10px",
+                                left: "50%",
+                                transform: "translateX(-50%)",
+                                background: "rgba(0,0,0,0.7)",
+                                color: "#fff",
+                                padding: "6px 14px",
+                                borderRadius: "6px",
+                                zIndex: 10,
+                                fontSize: "14px",
+                                fontWeight: 600,
+                                pointerEvents: "none",
+                            }}
+                        >
+                            {thermometerFirstPoint
+                                ? "Click to place second point"
+                                : "Click to place first point"}
+                        </div>
+                    )}
+                    {thermometerFirstPoint && (
+                        <Marker
+                            longitude={thermometerFirstPoint.longitude}
+                            latitude={thermometerFirstPoint.latitude}
+                            anchor="center"
+                        >
+                            <div
+                                style={{
+                                    background: "#ffaa00",
+                                    width: "18px",
+                                    height: "18px",
+                                    borderRadius: "50%",
+                                    border: "3px solid #fff",
+                                }}
+                            />
+                        </Marker>
+                    )}
+                    {thermometerPairs
+                        .flatMap((pair) => [pair.pointA, pair.pointB])
+                        .map((point, idx) => (
+                            <Marker
+                                key={`thermo-${idx}`}
+                                longitude={point.longitude}
+                                latitude={point.latitude}
+                                anchor="center"
+                                onClick={(e) => {
+                                    e.originalEvent.stopPropagation();
+                                    setFocusedMarker(point);
+                                    setShowPopup(true);
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        background: "#ff44ff",
+                                        width: "16px",
+                                        height: "16px",
+                                        borderRadius: "50%",
+                                        border: "2px solid #fff",
+                                        cursor: "pointer",
+                                    }}
+                                />
+                            </Marker>
+                        ))}
                     {lineCoords.map((lineCoord, i) => (
                         <Line
                             key={`line-${i}`}
@@ -527,6 +827,14 @@ function App({ toggleDarkMode }: AppProps) {
                                 theme.palette.background.default
                             )}
                             width={2}
+                        />
+                    ))}
+                    {thermometerCells.map((cell, i) => (
+                        <Line
+                            key={`thermo-cell-${i}`}
+                            coords={cell}
+                            color={"#ff44ff"}
+                            width={3}
                         />
                     ))}
                     {highlightMyPolygon && (
