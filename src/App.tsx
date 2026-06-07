@@ -49,6 +49,7 @@ import {
     FARMERS_MARKETS,
     FOREIGN_CONSULATES,
 } from "./consts/coordinates";
+import { loadSavedState, saveState } from "./utils/saveState";
 import Line from "./components/Line/Line";
 import Polygon from "./components/Polygon/Polygon";
 import type { FeatureCollection, MultiPolygon } from "geojson";
@@ -94,6 +95,7 @@ function App({ toggleDarkMode }: AppProps) {
     const isDarkMode = theme.palette.mode === "dark";
     const mapRef = useRef<MapRef>(null);
     const geoControlRef = useRef<mapboxgl.GeolocateControl>(null);
+    const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [viewState, setViewState] = useState(DEFAULT_VIEW_STATE);
     const [lineCoords, setLineCoords] = useState<MapCoordinates[][]>([]);
     const [mapStatus, setMapStatus] = useState<MapStatusType>(MapStatus.NONE);
@@ -150,6 +152,26 @@ function App({ toggleDarkMode }: AppProps) {
     }, []);
 
     useEffect(() => {
+        const saved = loadSavedState();
+        if (!saved) return;
+        if (saved.eliminatedPolygons)
+            setEliminatedPolygons(saved.eliminatedPolygons);
+        if (saved.eliminatedMultiPolygons)
+            setEliminatedMultiPolygons(saved.eliminatedMultiPolygons);
+        if (saved.thermometerPairs)
+            setThermometerPairs(saved.thermometerPairs);
+        if (saved.mapStatus !== undefined)
+            setMapStatus(saved.mapStatus as MapStatusType);
+        if (saved.showEliminatedAreas !== undefined)
+            setShowEliminatedAreas(saved.showEliminatedAreas);
+        if (saved.zapperMode !== undefined)
+            setZapperMode(saved.zapperMode);
+        if (saved.highlightMyPolygon !== undefined)
+            setHighlightMyPolygon(saved.highlightMyPolygon);
+        if (saved.viewState) setViewState(saved.viewState);
+    }, []);
+
+    useEffect(() => {
         if (!isPlacingThermometer) {
             setThermometerFirstPoint(null);
             setThermometerPreview(null);
@@ -168,6 +190,37 @@ function App({ toggleDarkMode }: AppProps) {
         // Activate as soon as the control is loaded
         geoControlRef.current?.trigger();
     }, [geoControlRef.current]);
+
+    useEffect(() => {
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = setTimeout(() => {
+            saveState({
+                version: 1,
+                eliminatedPolygons,
+                eliminatedMultiPolygons,
+                thermometerPairs,
+                mapStatus,
+                showEliminatedAreas,
+                zapperMode,
+                highlightMyPolygon,
+                isDarkMode,
+                viewState,
+            });
+        }, 1000);
+        return () => {
+            if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        };
+    }, [
+        eliminatedPolygons,
+        eliminatedMultiPolygons,
+        thermometerPairs,
+        mapStatus,
+        showEliminatedAreas,
+        zapperMode,
+        highlightMyPolygon,
+        isDarkMode,
+        viewState,
+    ]);
 
     useEffect(() => {
         setShowPopup(false);
